@@ -2189,36 +2189,31 @@ function renderDetailActions(anime, wlEntry) {
     }`;
 }
 
-async function checkWatchlist(animeId) {
-  try {
-    const r = await fetch(`/api/watchlist/${animeId}/check`);
-    return await r.json();
-  } catch {
-    return null;
-  }
+function checkWatchlist(animeId) {
+  const list = getWatchlist();
+  return list.find(i => i.anime_id === animeId) || null;
 }
 
-async function toggleWatchlist(anime) {
-  const existing = await checkWatchlist(anime.id);
-  if (existing) {
-    await fetch(`/api/watchlist/${anime.id}`, { method: "DELETE" });
+function toggleWatchlist(anime) {
+  const list = getWatchlist();
+  const existingIdx = list.findIndex(i => i.anime_id === anime.id);
+  if (existingIdx > -1) {
+    list.splice(existingIdx, 1);
     toast("Removed from watchlist", "ok");
   } else {
-    await fetch("/api/watchlist", {
-      method:  "POST",
-      headers: { "Content-Type": "application/json" },
-      body:    JSON.stringify({
-        anime_id:  anime.id,
-        title:     getTitle(anime),
-        cover_url: getCover(anime),
-        status:    "Plan to Watch",
-        total_eps: anime.episodes || 0
-      })
+    list.push({
+      anime_id: anime.id,
+      title: getTitle(anime),
+      cover_url: getCover(anime),
+      status: "Plan to Watch",
+      total_eps: anime.episodes || 0,
+      progress: 0,
+      score: null
     });
     toast("Added to watchlist", "ok");
   }
-  const after = await checkWatchlist(anime.id);
-  renderDetailActions(anime, after);
+  saveWatchlist(list);
+  renderDetailActions(anime, checkWatchlist(anime.id));
 }
 
 // ── PLAYER ────────────────────────────────────────────────────────────────
@@ -2247,11 +2242,9 @@ async function openPlayer(anime, ep) {
   });
 
   // Update watchlist progress (fire-and-forget)
-  fetch(`/api/watchlist/${anime.id}`, {
-    method:  "PATCH",
-    headers: { "Content-Type": "application/json" },
-    body:    JSON.stringify({ progress: ep })
-  }).catch(() => {});
+  const list = getWatchlist();
+  const idx = list.findIndex(i => i.anime_id === anime.id);
+  if (idx > -1) { list[idx].progress = ep; saveWatchlist(list); }
 
   await fetchStream();
 }
@@ -2398,18 +2391,26 @@ document.addEventListener("keydown", e => {
   }
 });
 
-// ── WATCHLIST ─────────────────────────────────────────────────────────────
+// ── WATCHLIST (localStorage) ───────────────────────────────────────────
 const WL_STATUSES = ["All","Watching","Completed","Plan to Watch","On Hold","Dropped"];
 
-async function loadWatchlist() {
+function getWatchlist() {
+  try { return JSON.parse(localStorage.getItem("anicult_watchlist")) || []; }
+  catch { return []; }
+}
+function saveWatchlist(list) {
+  localStorage.setItem("anicult_watchlist", JSON.stringify(list));
+}
+
+function loadWatchlist() {
   const tabs = document.getElementById("wl-tabs");
   tabs.innerHTML = WL_STATUSES.map(s =>
     `<div class="status-tab${wlFilter === s ? " active" : ""}"
           onclick="setWlFilter('${s}')">${s}</div>`
   ).join("");
 
-  const res   = await fetch(`/api/watchlist?status=${encodeURIComponent(wlFilter)}`);
-  const items = await res.json();
+  const allItems = getWatchlist();
+  const items = wlFilter === "All" ? allItems : allItems.filter(i => i.status === wlFilter);
   const list  = document.getElementById("wl-list");
 
   if (!items.length) {
@@ -2457,17 +2458,17 @@ async function loadWatchlist() {
 
 function setWlFilter(f) { wlFilter = f; loadWatchlist(); }
 
-async function updateWlStatus(id, status) {
-  await fetch(`/api/watchlist/${id}`, {
-    method:  "PATCH",
-    headers: { "Content-Type": "application/json" },
-    body:    JSON.stringify({ status })
-  });
+function updateWlStatus(id, status) {
+  const list = getWatchlist();
+  const idx = list.findIndex(i => i.anime_id === id);
+  if (idx > -1) { list[idx].status = status; saveWatchlist(list); }
+  loadWatchlist();
 }
 
-async function removeWl(id) {
+function removeWl(id) {
   if (!confirm("Remove from watchlist?")) return;
-  await fetch(`/api/watchlist/${id}`, { method: "DELETE" });
+  const list = getWatchlist().filter(i => i.anime_id !== id);
+  saveWatchlist(list);
   toast("Removed", "ok");
   loadWatchlist();
 }
