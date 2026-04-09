@@ -5,38 +5,55 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>AniCult</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
-<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Outfit:wght@500;600;700&family=Source+Sans+3:wght@400;500;600&display=swap" rel="stylesheet"/>
 <style>
 /* ── RESET & VARS ─────────────────────────────────────── */
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{
-  --bg:       #080808;
-  --bg2:      #0f0f0f;
-  --bg3:      #161616;
-  --bg4:      #1c1c1c;
-  --red:      #c0392b;
-  --red2:     #e74c3c;
-  --redglow:  rgba(192,57,43,.35);
-  --white:    #ede8e3;
-  --grey1:    #aaa;
-  --grey2:    #666;
-  --grey3:    #333;
-  --gold:     #e6a817;
-  --green:    #27ae60;
-  --border:   #1e1e1e;
+  --bg:       #0a090c;
+  --bg2:      #121018;
+  --bg3:      #1a1822;
+  --bg4:      #211f2a;
+  --accent:   #baa07a;
+  --accent2:  #d4bc94;
+  --accentglow:rgba(186,160,122,.28);
+  --accent-subtle:rgba(186,160,122,.12);
+  --danger:   #b8756a;
+  --white:    #e8e6e3;
+  --grey1:    #a39eaa;
+  --grey2:    #6e6978;
+  --grey3:    #4a4552;
+  --gold:     #c9a66b;
+  --green:    #5a9b6f;
+  --border:   #2a2732;
   --sidebar:  220px;
   --rad:      10px;
   --trans:    .2s ease;
 }
-html,body{height:100%;background:var(--bg);color:var(--white);font-family:'DM Sans',sans-serif;overflow:hidden}
+html,body{height:100%;background:var(--bg);color:var(--white);font-family:'Source Sans 3',system-ui,sans-serif;overflow:hidden}
 ::-webkit-scrollbar{width:5px;height:5px}
 ::-webkit-scrollbar-track{background:var(--bg2)}
 ::-webkit-scrollbar-thumb{background:var(--grey3);border-radius:3px}
-::-webkit-scrollbar-thumb:hover{background:var(--red)}
+::-webkit-scrollbar-thumb:hover{background:var(--accent)}
 img{display:block;object-fit:cover}
 button{cursor:pointer;font-family:inherit;border:none;outline:none}
 input,select,textarea{font-family:inherit;outline:none}
 a{color:inherit;text-decoration:none}
+
+/* Feather-style SVG icons (24×24, stroke) */
+.icon{
+  display:inline-block;vertical-align:middle;flex-shrink:0;
+  width:18px;height:18px;stroke:currentColor;fill:none;
+  stroke-width:2;stroke-linecap:round;stroke-linejoin:round;
+}
+.icon-sm{width:15px;height:15px;stroke-width:2}
+.icon-btn{width:20px;height:20px}
+.icon-lg{width:44px;height:44px;stroke-width:1.35;opacity:.42}
+.search-icon{display:inline-flex;align-items:center;justify-content:center;color:var(--grey2)}
+#player-close .icon{color:var(--grey2)}
+#player-close:hover .icon{color:var(--white)}
+.wl-remove{display:inline-flex;align-items:center;justify-content:center;padding:6px 8px}
+.wl-remove .icon{width:14px;height:14px}
 
 /* ── LAYOUT ───────────────────────────────────────────── */
 #app{display:flex;height:100vh;overflow:hidden}
@@ -50,15 +67,15 @@ a{color:inherit;text-decoration:none}
 }
 #sidebar::after{
   content:'';position:absolute;top:0;right:-1px;width:1px;height:100%;
-  background:linear-gradient(to bottom,transparent,var(--red) 50%,transparent);
+  background:linear-gradient(to bottom,transparent,var(--accent) 50%,transparent);
   opacity:.4;
 }
 .logo{
   padding:28px 8px 24px;display:flex;align-items:baseline;gap:1px;
   border-bottom:1px solid var(--border);margin-bottom:16px;
 }
-.logo-ani{font-family:'Bebas Neue',sans-serif;font-size:32px;letter-spacing:2px;color:var(--white)}
-.logo-cult{font-family:'Bebas Neue',sans-serif;font-size:32px;letter-spacing:2px;color:var(--red)}
+.logo-ani{font-family:'Outfit',sans-serif;font-size:30px;font-weight:700;letter-spacing:-0.02em;color:var(--white)}
+.logo-cult{font-family:'Outfit',sans-serif;font-size:30px;font-weight:700;letter-spacing:-0.02em;color:var(--accent)}
 
 .nav-item{
   display:flex;align-items:center;gap:12px;padding:11px 14px;
@@ -74,19 +91,19 @@ a{color:inherit;text-decoration:none}
 }
 .nav-item.active::before{
   content:'';position:absolute;left:0;top:25%;height:50%;width:3px;
-  background:var(--red);border-radius:0 3px 3px 0;
+  background:var(--accent);border-radius:0 3px 3px 0;
 }
-.nav-icon{width:18px;text-align:center;font-size:14px;opacity:.8}
+.nav-icon{width:20px;display:inline-flex;align-items:center;justify-content:center;opacity:.88}
 .nav-badge{
-  margin-left:auto;background:var(--red);color:#fff;
-  font-size:10px;font-family:'DM Mono',monospace;
+  margin-left:auto;background:var(--accent);color:#fff;
+  font-size:10px;font-family:'IBM Plex Mono',monospace;
   padding:2px 6px;border-radius:20px;min-width:20px;text-align:center;
 }
 
 .sidebar-bottom{
   margin-top:auto;padding:16px 8px;
   border-top:1px solid var(--border);
-  font-family:'DM Mono',monospace;font-size:10px;color:var(--grey3);
+  font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--grey3);
 }
 
 /* ── MAIN CONTENT ─────────────────────────────────────── */
@@ -97,7 +114,7 @@ a{color:inherit;text-decoration:none}
   display:flex;align-items:center;padding:0 28px;gap:16px;z-index:50;
 }
 .topbar-title{
-  font-family:'Bebas Neue',sans-serif;font-size:20px;letter-spacing:2px;
+  font-family:'Outfit',sans-serif;font-size:17px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;
   color:var(--grey2);
 }
 .topbar-search-wrap{
@@ -106,7 +123,7 @@ a{color:inherit;text-decoration:none}
   padding:0 14px;gap:10px;height:36px;flex:1;max-width:420px;margin-left:auto;
   transition:border-color var(--trans);
 }
-.topbar-search-wrap:focus-within{border-color:var(--red)}
+.topbar-search-wrap:focus-within{border-color:var(--accent)}
 .topbar-search-wrap input{
   background:none;border:none;color:var(--white);font-size:13.5px;flex:1;
 }
@@ -131,16 +148,17 @@ a{color:inherit;text-decoration:none}
 }
 .section-head:first-child{margin-top:0}
 .section-title{
-  font-family:'Bebas Neue',sans-serif;font-size:20px;letter-spacing:2px;
+  font-family:'Outfit',sans-serif;font-size:18px;font-weight:600;letter-spacing:.04em;
   color:var(--white);display:flex;align-items:center;gap:10px;
 }
-.section-title span{color:var(--red)}
+.section-title .sec-ico{color:var(--accent);display:inline-flex}
+.section-title span{color:var(--accent)}
 .see-all{
-  font-family:'DM Mono',monospace;font-size:11px;color:var(--grey2);
+  font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--grey2);
   background:none;border:1px solid var(--border);border-radius:6px;
   padding:5px 12px;transition:all var(--trans);cursor:pointer;
 }
-.see-all:hover{color:var(--red);border-color:var(--red)}
+.see-all:hover{color:var(--accent);border-color:var(--accent)}
 
 /* ── HERO BANNER ──────────────────────────────────────── */
 #hero{
@@ -154,24 +172,26 @@ a{color:inherit;text-decoration:none}
 }
 #hero-gradient{
   position:absolute;inset:0;
-  background:linear-gradient(90deg,rgba(8,8,8,.98) 0%,rgba(8,8,8,.7) 45%,rgba(8,8,8,.1) 100%),
-             linear-gradient(0deg,rgba(8,8,8,.9) 0%,transparent 50%);
+  background:linear-gradient(90deg,rgba(10,9,12,.98) 0%,rgba(10,9,12,.7) 45%,rgba(10,9,12,.1) 100%),
+             linear-gradient(0deg,rgba(10,9,12,.9) 0%,transparent 50%);
 }
 #hero-content{
   position:absolute;inset:0;display:flex;flex-direction:column;
   justify-content:flex-end;padding:36px 40px;max-width:600px;
 }
 #hero-tag{
-  font-family:'DM Mono',monospace;font-size:10px;letter-spacing:3px;
-  color:var(--red);text-transform:uppercase;margin-bottom:10px;
+  font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:3px;
+  color:var(--accent);text-transform:uppercase;margin-bottom:10px;
+  display:flex;align-items:center;gap:0;
 }
+#hero-tag svg{flex-shrink:0}
 #hero-title{
-  font-family:'Bebas Neue',sans-serif;font-size:48px;line-height:1;
-  letter-spacing:2px;color:var(--white);margin-bottom:10px;
+  font-family:'Outfit',sans-serif;font-size:44px;font-weight:700;line-height:1.05;
+  letter-spacing:-0.02em;color:var(--white);margin-bottom:10px;
 }
 #hero-meta{
   font-size:12px;color:var(--grey1);margin-bottom:12px;
-  font-family:'DM Mono',monospace;letter-spacing:.5px;
+  font-family:'IBM Plex Mono',monospace;letter-spacing:.5px;
 }
 #hero-desc{
   font-size:13px;color:var(--grey1);line-height:1.6;margin-bottom:20px;
@@ -186,7 +206,7 @@ a{color:inherit;text-decoration:none}
   width:24px;height:3px;border-radius:2px;background:rgba(255,255,255,.2);
   cursor:pointer;transition:all .3s ease;
 }
-.hero-dot.active{background:var(--red);width:36px}
+.hero-dot.active{background:var(--accent);width:36px}
 
 /* ── BUTTONS ──────────────────────────────────────────── */
 .btn{
@@ -195,12 +215,12 @@ a{color:inherit;text-decoration:none}
   cursor:pointer;transition:all var(--trans);border:1px solid transparent;
   letter-spacing:.3px;
 }
-.btn-primary{background:var(--red);color:#fff}
-.btn-primary:hover{background:var(--red2);transform:translateY(-1px);box-shadow:0 6px 20px var(--redglow)}
+.btn-primary{background:var(--accent);color:#fff}
+.btn-primary:hover{background:var(--accent2);transform:translateY(-1px);box-shadow:0 6px 20px var(--accentglow)}
 .btn-ghost{background:rgba(255,255,255,.08);color:var(--white);border-color:rgba(255,255,255,.12)}
 .btn-ghost:hover{background:rgba(255,255,255,.14);border-color:rgba(255,255,255,.2)}
 .btn-outline{background:transparent;color:var(--white);border-color:var(--border)}
-.btn-outline:hover{border-color:var(--red);color:var(--red)}
+.btn-outline:hover{border-color:var(--accent);color:var(--accent)}
 .btn-sm{padding:6px 14px;font-size:12px;border-radius:6px}
 .btn-icon{padding:8px;border-radius:7px;font-size:14px}
 
@@ -220,8 +240,8 @@ a{color:inherit;text-decoration:none}
   scroll-snap-align:start;position:relative;
 }
 .card:hover{
-  transform:translateY(-5px);border-color:var(--red);
-  box-shadow:0 12px 32px rgba(0,0,0,.5),0 0 0 1px var(--red);
+  transform:translateY(-5px);border-color:var(--accent);
+  box-shadow:0 12px 32px rgba(0,0,0,.5),0 0 0 1px var(--accent);
 }
 .card-img{
   width:160px;height:220px;background:var(--bg4);
@@ -231,12 +251,12 @@ a{color:inherit;text-decoration:none}
 .card:hover .card-img img{transform:scale(1.05)}
 .card-score{
   position:absolute;top:8px;left:8px;
-  font-family:'DM Mono',monospace;font-size:10px;font-weight:500;
+  font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:500;
   padding:3px 7px;border-radius:5px;color:#fff;
 }
 .card-format{
   position:absolute;top:8px;right:8px;
-  background:rgba(8,8,8,.8);font-family:'DM Mono',monospace;font-size:9px;
+  background:rgba(10,9,12,.8);font-family:'IBM Plex Mono',monospace;font-size:9px;
   padding:2px 6px;border-radius:4px;color:var(--grey1);
 }
 .card-body{padding:10px 10px 12px}
@@ -246,7 +266,7 @@ a{color:inherit;text-decoration:none}
   overflow:hidden;line-height:1.4;margin-bottom:6px;
 }
 .card-genre{
-  font-family:'DM Mono',monospace;font-size:9.5px;color:var(--red);
+  font-family:'IBM Plex Mono',monospace;font-size:9.5px;color:var(--accent);
   display:-webkit-box;-webkit-line-clamp:1;-webkit-box-orient:vertical;overflow:hidden;
 }
 
@@ -266,15 +286,16 @@ a{color:inherit;text-decoration:none}
 #detail-banner img{width:100%;height:100%;object-fit:cover}
 #detail-banner-grad{
   position:absolute;inset:0;
-  background:linear-gradient(0deg,var(--bg) 0%,rgba(8,8,8,.5) 60%,transparent 100%);
+  background:linear-gradient(0deg,var(--bg) 0%,rgba(10,9,12,.5) 60%,transparent 100%);
 }
 #detail-back{
   position:absolute;top:20px;left:24px;z-index:10;
-  background:rgba(8,8,8,.7);border:1px solid var(--border);
+  background:rgba(10,9,12,.7);border:1px solid var(--border);
   color:var(--white);padding:7px 16px;border-radius:7px;font-size:13px;
   cursor:pointer;backdrop-filter:blur(8px);transition:all var(--trans);
+  display:inline-flex;align-items:center;gap:6px;
 }
-#detail-back:hover{background:var(--red);border-color:var(--red)}
+#detail-back:hover{background:var(--accent);border-color:var(--accent)}
 #detail-body{padding:0 32px 48px;position:relative}
 #detail-top{display:flex;gap:28px;margin-top:-80px;margin-bottom:24px;align-items:flex-end}
 #detail-cover{
@@ -285,8 +306,8 @@ a{color:inherit;text-decoration:none}
 #detail-cover img{width:100%;height:100%}
 #detail-info{flex:1;padding-bottom:8px}
 #detail-title{
-  font-family:'Bebas Neue',sans-serif;font-size:38px;line-height:1;
-  letter-spacing:2px;color:var(--white);margin-bottom:6px;
+  font-family:'Outfit',sans-serif;font-size:34px;font-weight:700;line-height:1.1;
+  letter-spacing:-0.02em;color:var(--white);margin-bottom:6px;
 }
 #detail-title-jp{font-size:14px;color:var(--grey2);margin-bottom:12px;font-weight:400}
 .stat-row{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:16px}
@@ -294,25 +315,25 @@ a{color:inherit;text-decoration:none}
   background:var(--bg3);border:1px solid var(--border);border-radius:8px;
   padding:8px 14px;min-width:80px;text-align:center;
 }
-.stat-block .label{font-family:'DM Mono',monospace;font-size:9px;color:var(--grey3);margin-bottom:3px;text-transform:uppercase;letter-spacing:1px}
+.stat-block .label{font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--grey3);margin-bottom:3px;text-transform:uppercase;letter-spacing:1px}
 .stat-block .value{font-weight:700;font-size:14px}
 .genre-tags{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px}
 .genre-tag{
-  font-family:'DM Mono',monospace;font-size:10px;
+  font-family:'IBM Plex Mono',monospace;font-size:10px;
   background:var(--bg4);border:1px solid var(--border);
-  color:var(--red);padding:4px 10px;border-radius:20px;
+  color:var(--accent);padding:4px 10px;border-radius:20px;
   cursor:pointer;transition:all var(--trans);
 }
-.genre-tag:hover{border-color:var(--red);background:rgba(192,57,43,.1)}
+.genre-tag:hover{border-color:var(--accent);background:var(--accent-subtle)}
 .detail-actions{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:18px}
-#detail-studio{font-size:12px;color:var(--grey2);font-family:'DM Mono',monospace}
+#detail-studio{font-size:12px;color:var(--grey2);font-family:'IBM Plex Mono',monospace}
 
 .section-divider{
   display:flex;align-items:center;gap:12px;margin:24px 0 16px;
 }
 .section-divider span{
-  font-family:'Bebas Neue',sans-serif;font-size:16px;letter-spacing:2px;
-  color:var(--red);white-space:nowrap;
+  font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:500;letter-spacing:.14em;
+  color:var(--grey2);white-space:nowrap;text-transform:uppercase;
 }
 .section-divider::after{
   content:'';flex:1;height:1px;background:var(--border);
@@ -323,12 +344,12 @@ a{color:inherit;text-decoration:none}
 .ep-btn{
   width:54px;height:54px;border-radius:8px;
   background:var(--bg3);border:1px solid var(--border);
-  color:var(--grey1);font-family:'DM Mono',monospace;font-size:13px;font-weight:500;
+  color:var(--grey1);font-family:'IBM Plex Mono',monospace;font-size:13px;font-weight:500;
   cursor:pointer;transition:all var(--trans);display:flex;align-items:center;justify-content:center;
 }
-.ep-btn:hover{background:var(--red);border-color:var(--red);color:#fff;transform:scale(1.05)}
+.ep-btn:hover{background:var(--accent);border-color:var(--accent);color:#fff;transform:scale(1.05)}
 .ep-btn.watched{border-color:var(--grey3);color:var(--grey3)}
-.ep-btn.current{background:var(--red);border-color:var(--red);color:#fff}
+.ep-btn.current{background:var(--accent);border-color:var(--accent);color:#fff}
 
 /* ── CHARACTER ROW ────────────────────────────────────── */
 .char-row{display:flex;gap:12px;overflow-x:auto;padding-bottom:8px}
@@ -349,32 +370,33 @@ a{color:inherit;text-decoration:none}
 #player-box{
   background:var(--bg2);border:1px solid var(--border);border-radius:14px;
   width:90%;max-width:780px;overflow:hidden;
-  box-shadow:0 32px 80px rgba(0,0,0,.8),0 0 0 1px rgba(192,57,43,.2);
+  box-shadow:0 32px 80px rgba(0,0,0,.8),0 0 0 1px rgba(186,160,122,.22);
 }
 #player-header{
   background:var(--bg3);padding:16px 20px;
   display:flex;align-items:center;justify-content:space-between;
   border-bottom:1px solid var(--border);
 }
-#player-title{font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:1.5px}
+#player-title{font-family:'Outfit',sans-serif;font-size:16px;font-weight:600;letter-spacing:.04em}
 #player-close{
-  background:none;border:none;color:var(--grey2);font-size:20px;
-  cursor:pointer;line-height:1;transition:color var(--trans);padding:4px;
+  background:none;border:none;color:var(--grey2);
+  cursor:pointer;line-height:1;transition:color var(--trans);padding:6px;
+  display:inline-flex;align-items:center;justify-content:center;border-radius:6px;
 }
-#player-close:hover{color:var(--white)}
+#player-close:hover{color:var(--white);background:rgba(255,255,255,.06)}
 #player-body{padding:24px 28px}
 #player-status{
   background:var(--bg);border-radius:10px;padding:24px;
   min-height:120px;display:flex;flex-direction:column;align-items:center;justify-content:center;
   text-align:center;border:1px solid var(--border);margin-bottom:20px;
-  font-family:'DM Mono',monospace;font-size:13px;color:var(--grey2);line-height:1.8;
+  font-family:'IBM Plex Mono',monospace;font-size:13px;color:var(--grey2);line-height:1.8;
 }
 .player-controls{display:flex;flex-wrap:wrap;gap:12px;margin-bottom:20px;align-items:center}
 .player-select-wrap{display:flex;align-items:center;gap:8px}
-.player-select-wrap label{font-size:11px;color:var(--grey3);font-family:'DM Mono',monospace;white-space:nowrap}
+.player-select-wrap label{font-size:11px;color:var(--grey3);font-family:'IBM Plex Mono',monospace;white-space:nowrap}
 .player-select{
   background:var(--bg3);border:1px solid var(--border);color:var(--white);
-  padding:6px 10px;border-radius:6px;font-size:12px;font-family:'DM Mono',monospace;
+  padding:6px 10px;border-radius:6px;font-size:12px;font-family:'IBM Plex Mono',monospace;
   cursor:pointer;
 }
 .player-actions{display:flex;gap:10px;flex-wrap:wrap}
@@ -387,7 +409,7 @@ a{color:inherit;text-decoration:none}
 /* ── SPINNER ──────────────────────────────────────────── */
 .spinner{
   width:28px;height:28px;border:2px solid var(--border);
-  border-top-color:var(--red);border-radius:50%;
+  border-top-color:var(--accent);border-radius:50%;
   animation:spin .7s linear infinite;margin:0 auto 12px;
 }
 @keyframes spin{to{transform:rotate(360deg)}}
@@ -399,37 +421,37 @@ a{color:inherit;text-decoration:none}
   color:var(--white);padding:12px 18px;border-radius:10px;font-size:15px;
   transition:border-color var(--trans);
 }
-#search-input-big:focus{border-color:var(--red)}
+#search-input-big:focus{border-color:var(--accent)}
 .genre-pills{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px}
 .genre-pill{
-  font-family:'DM Mono',monospace;font-size:11px;
+  font-family:'IBM Plex Mono',monospace;font-size:11px;
   background:var(--bg3);border:1px solid var(--border);
   color:var(--grey2);padding:6px 14px;border-radius:20px;cursor:pointer;
   transition:all var(--trans);
 }
-.genre-pill:hover,.genre-pill.active{background:rgba(192,57,43,.15);border-color:var(--red);color:var(--red)}
+.genre-pill:hover,.genre-pill.active{background:var(--accent-subtle);border-color:var(--accent);color:var(--accent)}
 #search-label{
-  font-family:'DM Mono',monospace;font-size:11px;color:var(--grey3);
+  font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--grey3);
   margin-bottom:16px;
 }
 #load-more-btn{
   display:block;margin:28px auto 0;padding:11px 32px;
   background:var(--bg3);border:1px solid var(--border);
   color:var(--grey1);border-radius:8px;font-size:13px;cursor:pointer;
-  transition:all var(--trans);font-family:'DM Mono',monospace;
+  transition:all var(--trans);font-family:'IBM Plex Mono',monospace;
 }
-#load-more-btn:hover{border-color:var(--red);color:var(--red)}
+#load-more-btn:hover{border-color:var(--accent);color:var(--accent)}
 
 /* ── WATCHLIST PAGE ───────────────────────────────────── */
 .status-tabs{display:flex;gap:4px;margin-bottom:20px;flex-wrap:wrap}
 .status-tab{
-  font-family:'DM Mono',monospace;font-size:11px;
+  font-family:'IBM Plex Mono',monospace;font-size:11px;
   background:var(--bg3);border:1px solid var(--border);
   color:var(--grey2);padding:7px 14px;border-radius:6px;cursor:pointer;
   transition:all var(--trans);
 }
 .status-tab:hover{color:var(--white)}
-.status-tab.active{background:rgba(192,57,43,.15);border-color:var(--red);color:var(--red)}
+.status-tab.active{background:var(--accent-subtle);border-color:var(--accent);color:var(--accent)}
 .wl-item{
   display:flex;gap:16px;align-items:center;
   background:var(--bg3);border:1px solid var(--border);border-radius:10px;
@@ -441,21 +463,21 @@ a{color:inherit;text-decoration:none}
 .wl-info{flex:1;min-width:0}
 .wl-title{font-weight:600;font-size:14px;margin-bottom:4px;
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.wl-sub{font-family:'DM Mono',monospace;font-size:11px;color:var(--grey2);margin-bottom:8px}
+.wl-sub{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--grey2);margin-bottom:8px}
 .wl-progress-bar{height:3px;background:var(--border);border-radius:2px;overflow:hidden}
-.wl-progress-fill{height:100%;background:var(--red);border-radius:2px;transition:width .4s}
+.wl-progress-fill{height:100%;background:var(--accent);border-radius:2px;transition:width .4s}
 .wl-actions{display:flex;gap:8px;align-items:center;margin-left:auto}
 .wl-status-sel{
   background:var(--bg4);border:1px solid var(--border);
   color:var(--white);padding:5px 8px;border-radius:6px;
-  font-size:11px;font-family:'DM Mono',monospace;cursor:pointer;
+  font-size:11px;font-family:'IBM Plex Mono',monospace;cursor:pointer;
 }
 .wl-remove{
   background:none;border:1px solid var(--border);color:var(--grey3);
   padding:5px 10px;border-radius:6px;font-size:11px;cursor:pointer;
   transition:all var(--trans);
 }
-.wl-remove:hover{border-color:var(--red);color:var(--red)}
+.wl-remove:hover{border-color:var(--accent);color:var(--accent)}
 
 /* ── HISTORY PAGE ─────────────────────────────────────── */
 .hist-item{
@@ -464,12 +486,12 @@ a{color:inherit;text-decoration:none}
   padding:12px 16px;margin-bottom:6px;
 }
 .hist-ep{
-  font-family:'DM Mono',monospace;font-size:11px;color:var(--red);
+  font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--accent);
   white-space:nowrap;
 }
 .hist-title{font-size:13.5px;font-weight:500;flex:1;
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.hist-date{font-family:'DM Mono',monospace;font-size:10px;color:var(--grey3);white-space:nowrap}
+.hist-date{font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--grey3);white-space:nowrap}
 
 /* ── DOWNLOADS PAGE ───────────────────────────────────── */
 .dl-item{
@@ -480,27 +502,27 @@ a{color:inherit;text-decoration:none}
 .dl-info{flex:1;min-width:0}
 .dl-title{font-size:13.5px;font-weight:600;
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:3px}
-.dl-ep{font-family:'DM Mono',monospace;font-size:11px;color:var(--grey2)}
+.dl-ep{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--grey2)}
 .dl-status{
-  font-family:'DM Mono',monospace;font-size:10px;font-weight:700;
+  font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:700;
   padding:3px 8px;border-radius:4px;text-transform:uppercase;
   white-space:nowrap;
 }
 .dl-status.done{background:rgba(39,174,96,.15);color:var(--green)}
 .dl-status.downloading{background:rgba(230,168,23,.1);color:var(--gold)}
-.dl-status.failed{background:rgba(192,57,43,.15);color:var(--red)}
+.dl-status.failed{background:rgba(184,117,106,.15);color:var(--danger)}
 
 /* ── SETTINGS PAGE ────────────────────────────────────── */
 .settings-section{margin-bottom:32px}
 .settings-label{
-  font-family:'DM Mono',monospace;font-size:10px;letter-spacing:2px;
-  color:var(--red);text-transform:uppercase;margin-bottom:8px;
+  font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:2px;
+  color:var(--accent);text-transform:uppercase;margin-bottom:8px;
   padding-bottom:8px;border-bottom:1px solid var(--border);
 }
 .settings-field{margin-bottom:16px}
 .settings-field label{
   display:block;font-size:12px;color:var(--grey2);margin-bottom:6px;
-  font-family:'DM Mono',monospace;
+  font-family:'IBM Plex Mono',monospace;
 }
 .settings-input{
   width:100%;max-width:480px;
@@ -508,36 +530,37 @@ a{color:inherit;text-decoration:none}
   color:var(--white);padding:10px 14px;border-radius:8px;font-size:13.5px;
   transition:border-color var(--trans);
 }
-.settings-input:focus{border-color:var(--red)}
-.settings-hint{font-size:11px;color:var(--grey3);margin-top:5px;font-family:'DM Mono',monospace}
-.settings-hint a{color:var(--red)}
+.settings-input:focus{border-color:var(--accent)}
+.settings-hint{font-size:11px;color:var(--grey3);margin-top:5px;font-family:'IBM Plex Mono',monospace}
+.settings-hint a{color:var(--accent)}
 .radio-group{display:flex;gap:16px}
 .radio-opt{display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px}
-.radio-opt input{accent-color:var(--red)}
+.radio-opt input{accent-color:var(--accent)}
 
 /* ── RECOMMENDATIONS ──────────────────────────────────── */
 .rec-card{
   flex:0 0 120px;cursor:pointer;border-radius:8px;overflow:hidden;
   background:var(--bg3);border:1px solid var(--border);transition:all var(--trans);
 }
-.rec-card:hover{border-color:var(--red);transform:translateY(-3px)}
+.rec-card:hover{border-color:var(--accent);transform:translateY(-3px)}
 .rec-card img{width:100%;height:160px;object-fit:cover}
 .rec-card .rec-title{font-size:10px;color:var(--grey1);padding:7px 8px;
   display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 
 /* ── PAGE TITLES ──────────────────────────────────────── */
 .page-title{
-  font-family:'Bebas Neue',sans-serif;font-size:26px;letter-spacing:2.5px;
+  font-family:'Outfit',sans-serif;font-size:24px;font-weight:600;letter-spacing:-0.02em;
   color:var(--white);margin-bottom:24px;display:flex;align-items:center;gap:12px;
 }
-.page-title .accent{color:var(--red)}
+.page-title .accent{color:var(--accent)}
 
 /* ── EMPTY STATE ──────────────────────────────────────── */
 .empty{
   text-align:center;padding:80px 20px;
-  font-family:'DM Mono',monospace;font-size:13px;color:var(--grey3);line-height:2;
+  font-family:'IBM Plex Mono',monospace;font-size:13px;color:var(--grey3);line-height:2;
 }
-.empty .empty-icon{font-size:40px;margin-bottom:16px;opacity:.4}
+.empty .empty-icon{display:flex;justify-content:center;margin-bottom:16px}
+.empty .empty-icon svg{stroke:var(--grey3)}
 
 /* ── TOAST ────────────────────────────────────────────── */
 #toast{
@@ -551,7 +574,7 @@ a{color:inherit;text-decoration:none}
 }
 #toast.show{transform:translateY(0);opacity:1}
 #toast.ok .toast-dot{background:var(--green)}
-#toast.err .toast-dot{background:var(--red)}
+#toast.err .toast-dot{background:var(--danger)}
 .toast-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
 
 /* ── LOADING OVERLAY ──────────────────────────────────── */
@@ -562,9 +585,9 @@ a{color:inherit;text-decoration:none}
 }
 #page-loader.hidden{opacity:0;pointer-events:none}
 .loader-logo{
-  font-family:'Bebas Neue',sans-serif;font-size:52px;letter-spacing:4px;
+  font-family:'Outfit',sans-serif;font-size:48px;font-weight:700;letter-spacing:-0.03em;
 }
-.loader-logo span{color:var(--red)}
+.loader-logo span{color:var(--accent)}
 </style>
 </head>
 <body>
@@ -581,7 +604,7 @@ a{color:inherit;text-decoration:none}
   <div id="player-box">
     <div id="player-header">
       <span id="player-title">Episode Player</span>
-      <button id="player-close">✕</button>
+      <button id="player-close" type="button" aria-label="Close"><svg class="icon icon-btn" viewBox="0 0 24 24" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
     </div>
     <div id="player-body">
       <div id="player-status"><div class="spinner"></div>Fetching stream...</div>
@@ -604,18 +627,18 @@ a{color:inherit;text-decoration:none}
         </div>
       </div>
       <div class="player-actions">
-        <button class="btn btn-primary" onclick="openMPV()">▶ Open in MPV</button>
-        <button class="btn btn-ghost" onclick="openVLC()">▶ Open in VLC</button>
-        <button class="btn btn-outline" onclick="copyStream()">⎘ Copy URL</button>
-        <button class="btn btn-outline" onclick="downloadEp()">⬇ Download</button>
+        <button class="btn btn-primary" onclick="openMPV()"><svg class="icon icon-sm" viewBox="0 0 24 24" aria-hidden="true"><polygon points="5 3 19 12 5 21 5 3"/></svg> Open in MPV</button>
+        <button class="btn btn-ghost" onclick="openVLC()"><svg class="icon icon-sm" viewBox="0 0 24 24" aria-hidden="true"><polygon points="5 3 19 12 5 21 5 3"/></svg> Open in VLC</button>
+        <button class="btn btn-outline" onclick="copyStream()"><svg class="icon icon-sm" viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg> Copy URL</button>
+        <button class="btn btn-outline" onclick="downloadEp()"><svg class="icon icon-sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Download</button>
       </div>
     </div>
     <div id="player-footer">
       <div class="ep-nav">
-        <button class="btn btn-outline btn-sm" onclick="prevEp()">← Prev</button>
-        <button class="btn btn-outline btn-sm" onclick="nextEp()">Next →</button>
+        <button class="btn btn-outline btn-sm" onclick="prevEp()"><svg class="icon icon-sm" viewBox="0 0 24 24" aria-hidden="true"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg> Prev</button>
+        <button class="btn btn-outline btn-sm" onclick="nextEp()">Next <svg class="icon icon-sm" viewBox="0 0 24 24" aria-hidden="true"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg></button>
       </div>
-      <span id="player-ep-label" style="font-family:'DM Mono',monospace;font-size:11px;color:var(--grey3)"></span>
+      <span id="player-ep-label" style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--grey3)"></span>
     </div>
   </div>
 </div>
@@ -627,22 +650,22 @@ a{color:inherit;text-decoration:none}
       <span class="logo-ani">Ani</span><span class="logo-cult">Cult</span>
     </div>
     <div class="nav-item active" data-page="home">
-      <span class="nav-icon">⌂</span> Home
+      <span class="nav-icon"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></span> Home
     </div>
     <div class="nav-item" data-page="search">
-      <span class="nav-icon">⊹</span> Search
+      <span class="nav-icon"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></span> Search
     </div>
     <div class="nav-item" data-page="watchlist">
-      <span class="nav-icon">◫</span> Watchlist
+      <span class="nav-icon"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg></span> Watchlist
     </div>
     <div class="nav-item" data-page="history">
-      <span class="nav-icon">◷</span> History
+      <span class="nav-icon"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg></span> History
     </div>
     <div class="nav-item" data-page="downloads">
-      <span class="nav-icon">⬇</span> Downloads
+      <span class="nav-icon"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></span> Downloads
     </div>
     <div class="nav-item" data-page="settings">
-      <span class="nav-icon">⚙</span> Settings
+      <span class="nav-icon"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></span> Settings
     </div>
     <div class="sidebar-bottom">AniCult v2.0 · Web</div>
   </nav>
@@ -651,7 +674,7 @@ a{color:inherit;text-decoration:none}
     <div id="topbar">
       <span class="topbar-title" id="topbar-title">HOME</span>
       <div class="topbar-search-wrap">
-        <span class="search-icon">⊹</span>
+        <span class="search-icon"><svg class="icon icon-sm" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></span>
         <input type="text" placeholder="Quick search..." id="topbar-search" autocomplete="off"/>
       </div>
     </div>
@@ -664,12 +687,12 @@ a{color:inherit;text-decoration:none}
           <img id="hero-img" src="" alt=""/>
           <div id="hero-gradient"></div>
           <div id="hero-content">
-            <div id="hero-tag">● TRENDING NOW</div>
+            <div id="hero-tag"><svg class="icon icon-sm" viewBox="0 0 24 24" aria-hidden="true"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg> TRENDING NOW</div>
             <div id="hero-title">Loading...</div>
             <div id="hero-meta"></div>
             <div id="hero-desc"></div>
             <div class="hero-btns">
-              <button class="btn btn-primary" onclick="event.stopPropagation();heroWatch()">▶ Watch</button>
+              <button class="btn btn-primary" onclick="event.stopPropagation();heroWatch()"><svg class="icon icon-sm" viewBox="0 0 24 24" aria-hidden="true"><polygon points="5 3 19 12 5 21 5 3"/></svg> Watch</button>
               <button class="btn btn-ghost" onclick="event.stopPropagation();heroDetail()">Details</button>
             </div>
           </div>
@@ -677,17 +700,17 @@ a{color:inherit;text-decoration:none}
         </div>
 
         <div class="section-head">
-          <div class="section-title">🔥 Trending <span>Now</span></div>
+          <div class="section-title"><span class="sec-ico"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg></span> Trending <span>Now</span></div>
         </div>
         <div class="h-row" id="trending-row"></div>
 
         <div class="section-head">
-          <div class="section-title">⭐ Top <span>Rated</span></div>
+          <div class="section-title"><span class="sec-ico"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg></span> Top <span>Rated</span></div>
         </div>
         <div class="h-row" id="toprated-row"></div>
 
         <div class="section-head">
-          <div class="section-title">📅 This <span>Season</span></div>
+          <div class="section-title"><span class="sec-ico"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></span> This <span>Season</span></div>
         </div>
         <div class="h-row" id="seasonal-row"></div>
       </div>
@@ -702,7 +725,7 @@ a{color:inherit;text-decoration:none}
         <div class="genre-pills" id="genre-pills"></div>
         <div id="search-label"></div>
         <div class="grid" id="search-grid"></div>
-        <button id="load-more-btn" onclick="loadMore()" style="display:none">Load More ↓</button>
+        <button id="load-more-btn" onclick="loadMore()" style="display:none">Load more <svg class="icon icon-sm" style="vertical-align:middle" viewBox="0 0 24 24" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/></svg></button>
       </div>
 
       <!-- DETAIL -->
@@ -710,7 +733,7 @@ a{color:inherit;text-decoration:none}
         <div id="detail-banner">
           <img id="detail-banner-img" src="" alt=""/>
           <div id="detail-banner-grad"></div>
-          <button id="detail-back" onclick="goBack()">← Back</button>
+          <button id="detail-back" onclick="goBack()"><svg class="icon icon-sm" viewBox="0 0 24 24" aria-hidden="true"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg> Back</button>
         </div>
         <div id="detail-body">
           <div id="detail-top">
@@ -755,7 +778,7 @@ a{color:inherit;text-decoration:none}
       <div class="page" id="page-downloads">
         <div class="page-title" style="justify-content:space-between">
           <span>Down<span class="accent">loads</span></span>
-          <button class="btn btn-outline btn-sm" onclick="loadDownloads()">⟳ Refresh</button>
+          <button class="btn btn-outline btn-sm" onclick="loadDownloads()"><svg class="icon icon-sm" viewBox="0 0 24 24" aria-hidden="true"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg> Refresh</button>
         </div>
         <div id="dl-list"></div>
       </div>
@@ -798,7 +821,7 @@ a{color:inherit;text-decoration:none}
 
           <div class="settings-section">
             <div class="settings-label">About</div>
-            <div style="font-family:'DM Mono',monospace;font-size:12px;color:var(--grey3);line-height:2">
+            <div style="font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--grey3);line-height:2">
               AniCult Web v2.0<br>
               Python Flask · AniList GraphQL · aniwatch-api<br>
               Personal use only.
@@ -935,7 +958,7 @@ function scoreColor(s) {
   if (!s) return "var(--grey3)";
   if (s >= 80) return "var(--green)";
   if (s >= 60) return "var(--gold)";
-  return "var(--red)";
+  return "var(--accent)";
 }
 function currentSeason() {
   const m = new Date().getMonth() + 1;
@@ -948,7 +971,7 @@ function currentSeason() {
 function cardHTML(anime) {
   const score = anime.averageScore;
   const scoreStr = score ? `★ ${(score/10).toFixed(1)}` : "";
-  const scoreBg = score >= 80 ? "var(--green)" : score >= 60 ? "var(--gold)" : score ? "var(--red)" : "var(--bg4)";
+  const scoreBg = score >= 80 ? "var(--green)" : score >= 60 ? "var(--gold)" : score ? "var(--accent)" : "var(--bg4)";
   const genres = (anime.genres || []).slice(0,2).join(" · ");
   const fmt = (anime.format || "").replace("_"," ");
   const cover = getCover(anime);
@@ -1173,7 +1196,7 @@ async function renderDetail(animeSummary) {
     }
     document.getElementById("ep-grid").innerHTML = epHTML;
   } else {
-    document.getElementById("ep-grid").innerHTML = `<p style="color:var(--grey3);font-size:13px;font-family:'DM Mono',monospace">Episode list unavailable for this title.</p>`;
+    document.getElementById("ep-grid").innerHTML = `<p style="color:var(--grey3);font-size:13px;font-family:'IBM Plex Mono',monospace">Episode list unavailable for this title.</p>`;
   }
 
   // Characters
@@ -1208,14 +1231,15 @@ async function renderDetail(animeSummary) {
 
 function renderDetailActions(anime, wlEntry) {
   const inWl = !!wlEntry;
+  const icPlay = `<svg class="icon icon-sm" viewBox="0 0 24 24" aria-hidden="true"><polygon points="5 3 19 12 5 21 5 3"/></svg>`;
   document.getElementById("detail-actions").innerHTML = `
-    <button class="btn btn-primary" onclick="openPlayer(currentDetailAnime,1)">▶ Watch</button>
+    <button class="btn btn-primary" onclick="openPlayer(currentDetailAnime,1)">${icPlay} Watch</button>
     <button class="btn btn-ghost ${inWl?'':'btn-outline'}" id="wl-toggle-btn"
       onclick="toggleWatchlist(currentDetailAnime)"
       style="${inWl?'':''}">
-      ${inWl ? "✓ In Watchlist" : "+ Watchlist"}
+      ${inWl ? "In watchlist" : "Watchlist"}
     </button>
-    ${anime.trailer?.site==="youtube" ? `<button class="btn btn-outline" onclick="window.open('https://youtube.com/watch?v=${anime.trailer.id}','_blank')">▶ Trailer</button>` : ""}
+    ${anime.trailer?.site==="youtube" ? `<button class="btn btn-outline" onclick="window.open('https://youtube.com/watch?v=${anime.trailer.id}','_blank')">${icPlay} Trailer</button>` : ""}
   `;
 }
 
@@ -1243,7 +1267,7 @@ async function toggleWatchlist(anime) {
         total_eps: anime.episodes || 0
       })
     });
-    toast("Added to watchlist ✓", "ok");
+    toast("Added to watchlist", "ok");
   }
   const after = await checkWatchlist(anime.id);
   renderDetailActions(anime, after);
@@ -1330,14 +1354,14 @@ async function fetchStream() {
     document.getElementById("sub-sel").innerHTML = subOpts.join("");
 
     document.getElementById("player-status").innerHTML =
-      `<div style="color:var(--green);font-size:18px;margin-bottom:8px">✓</div>
+      `<div style="display:flex;justify-content:center;margin-bottom:10px"><svg class="icon icon-lg" style="width:22px;height:22px;stroke:var(--green);opacity:1" viewBox="0 0 24 24" aria-hidden="true"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></div>
        Stream ready<br>
        <span style="font-size:11px;opacity:.5">Available: ${qualOpts.join(", ")}</span><br>
        <span style="font-size:11px;opacity:.5">Open in MPV or VLC below · Or copy URL</span>`;
 
   } catch (e) {
     document.getElementById("player-status").innerHTML =
-      `<div style="color:var(--red);font-size:16px;margin-bottom:10px">⚠</div>
+      `<div style="display:flex;justify-content:center;margin-bottom:10px"><svg class="icon icon-lg" style="width:22px;height:22px;stroke:var(--danger);opacity:1" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg></div>
        ${e.message}<br>
        <span style="font-size:11px;opacity:.4">Make sure aniwatch-api is running · Settings → API URL</span>`;
   }
@@ -1378,7 +1402,7 @@ async function downloadEp() {
     })
   });
   const d = await res.json();
-  toast("Download started ⬇", "ok");
+  toast("Download started", "ok");
 }
 
 function prevEp() {
@@ -1410,7 +1434,7 @@ async function loadWatchlist() {
   const items = await res.json();
   const list  = document.getElementById("wl-list");
   if (!items.length) {
-    list.innerHTML = `<div class="empty"><div class="empty-icon">◫</div>Nothing here yet.<br>Browse anime and add to watchlist.</div>`;
+    list.innerHTML = `<div class="empty"><div class="empty-icon"><svg class="icon icon-lg" viewBox="0 0 24 24" aria-hidden="true"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg></div>Nothing here yet.<br>Browse anime and add to watchlist.</div>`;
     return;
   }
   list.innerHTML = items.map(item => {
@@ -1427,7 +1451,7 @@ async function loadWatchlist() {
         <select class="wl-status-sel" onchange="updateWlStatus(${item.anime_id},this.value)">
           ${WL_STATUSES.slice(1).map(s => `<option${s===item.status?" selected":""}>${s}</option>`).join("")}
         </select>
-        <button class="wl-remove" onclick="removeWl(${item.anime_id})">✕</button>
+        <button class="wl-remove" type="button" aria-label="Remove" onclick="removeWl(${item.anime_id})"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
       </div>
     </div>`;
   }).join("");
@@ -1459,7 +1483,7 @@ async function loadHistory() {
   const items = await res.json();
   const list  = document.getElementById("hist-list");
   if (!items.length) {
-    list.innerHTML = `<div class="empty"><div class="empty-icon">◷</div>No watch history yet.</div>`;
+    list.innerHTML = `<div class="empty"><div class="empty-icon"><svg class="icon icon-lg" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>No watch history yet.</div>`;
     return;
   }
   list.innerHTML = items.map(h =>
@@ -1483,7 +1507,7 @@ async function loadDownloads() {
   const items = await res.json();
   const list  = document.getElementById("dl-list");
   if (!items.length) {
-    list.innerHTML = `<div class="empty"><div class="empty-icon">⬇</div>No downloads yet.</div>`;
+    list.innerHTML = `<div class="empty"><div class="empty-icon"><svg class="icon icon-lg" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></div>No downloads yet.</div>`;
     return;
   }
   list.innerHTML = items.map(d =>
@@ -1493,7 +1517,7 @@ async function loadDownloads() {
         <div class="dl-ep">Episode ${d.episode} · ${d.downloaded_at?.slice(0,10)||""}</div>
       </div>
       <div class="dl-status ${d.status}">${d.status}</div>
-      <button class="btn btn-outline btn-sm" onclick="deleteDownload(${d.id})">✕</button>
+      <button class="btn btn-outline btn-sm" type="button" aria-label="Remove download" onclick="deleteDownload(${d.id})"><svg class="icon icon-sm" viewBox="0 0 24 24" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
     </div>`
   ).join("");
 }
@@ -1522,7 +1546,7 @@ async function saveSettings() {
       player
     })
   });
-  toast("Settings saved ✓", "ok");
+  toast("Settings saved", "ok");
 }
 
 // ── TOPBAR SEARCH ─────────────────────────────────────────────────
