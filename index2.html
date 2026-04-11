@@ -2084,6 +2084,7 @@ async function renderDetail(animeSummary) {
     ? anime.title.romaji
     : (anime.title?.native || "");
   document.getElementById("detail-title-jp").textContent = jp;
+  window.currentDetailAnime = anime;
 
   // Stats
   const score = anime.averageScore;
@@ -2239,7 +2240,7 @@ async function openPlayer(anime, ep) {
     method:  "POST",
     headers: { "Content-Type": "application/json" },
     body:    JSON.stringify({ anime_id: anime.id, title: getTitle(anime), episode: ep })
-  });
+  }).catch(() => {});
 
   // Update watchlist progress (fire-and-forget)
   const list = getWatchlist();
@@ -2376,7 +2377,7 @@ document.getElementById("player-overlay").onclick = e => {
     document.getElementById("player-overlay").classList.remove("open");
   }
 };
-document.getElementById("server-sel").onchange = fetchStream;
+document.getElementById("server-sel").onchange = () => fetchStream();
 
 // Escape key closes player
 document.addEventListener("keydown", e => {

@@ -1131,6 +1131,7 @@ async function renderDetail(animeSummary) {
   document.getElementById("detail-banner-img").src = banner;
   document.getElementById("detail-cover-img").src = cover;
   document.getElementById("detail-title").textContent = (anime.title?.english) || (anime.title?.romaji) || title;
+  window.currentDetailAnime = anime;
 
   const jp = anime.title?.romaji && anime.title?.english ? anime.title.romaji : (anime.title?.native || "");
   document.getElementById("detail-title-jp").textContent = jp;
@@ -1275,7 +1276,7 @@ async function openPlayer(anime, ep) {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ anime_id: anime.id, title: getTitle(anime), episode: ep })
-  });
+  }).catch(() => {});
   // Update watchlist progress
   const list = getWatchlist();
   const idx = list.findIndex(i => i.anime_id === anime.id);
@@ -1327,8 +1328,10 @@ async function fetchStream() {
     document.getElementById("quality-sel").innerHTML =
       qualOpts.map(q => `<option value="${q}">${q}</option>`).join("");
 
-    const subOpts = ["<option value=''>None</option>"] +
-      playerSubs.map(t => `<option value="${t.file||t.url||""}">${t.label||"Sub"}</option>`);
+    const subOpts = [
+      `<option value="">None</option>`,
+      ...playerSubs.map(t => `<option value="${t.file||t.url||""}">${t.label||"Sub"}</option>`)
+    ];
     document.getElementById("sub-sel").innerHTML = subOpts.join("");
 
     document.getElementById("player-status").innerHTML =
@@ -1398,7 +1401,7 @@ document.getElementById("player-overlay").onclick = (e) => {
   if (e.target === document.getElementById("player-overlay"))
     document.getElementById("player-overlay").classList.remove("open");
 };
-document.getElementById("server-sel").onchange = fetchStream;
+document.getElementById("server-sel").onchange = () => fetchStream();
 
 // ── WATCHLIST (localStorage) ───────────────────────────────────────
 const WL_STATUSES = ["All","Watching","Completed","Plan to Watch","On Hold","Dropped"];
