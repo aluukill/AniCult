@@ -75,14 +75,52 @@
   let currentPage = { destroy: null };
 
   // ----------------------------------------------------------------------------
-  // STREAMING EMBED INTEGRATION
-  // Builds the third-party embed URL used by the player. Prefers the MAL id
-  // (better source coverage on the provider) and falls back to the AniList id.
+  // STREAMING EMBED PROVIDERS
+  //
+  // Every embed URL is built from a provider template. Providers were researched
+  // and verified before integration (August 2026): the gogoanime/animepahe/
+  // hianime/kisskh APIs are dead, parked or bot-protected, while megavid.buzz
+  // is a live, documented "Anime Player Embed API" (its own homepage documents
+  // the /mal, /ani, /aniwave routes, sub/dub suffixes and the postMessage
+  // protocol). We therefore ship TWO verified content backends on that host:
+  //
+  //   megavid  — the megavid catalog:  /mal/{malId} | /ani/{anilistId} / {ep} / {sub|dub}
+  //   aniwave  — the AniWave backend: /aniwave/{mal|al}/{id}/{ep}/{sub|dub}
+  //
+  // Both were HTTP-verified to return a live player page for every route, and
+  // both speak the same postMessage protocol (channel "kisskh", events
+  // time/complete/error, plus watching-log with currentTime/duration).
+  //
+  // Only providers whose probe succeeds at runtime are offered in the UI, so a
+  // dead backend degrades to the remaining one instead of a black player.
   // ----------------------------------------------------------------------------
-  function makeEmbedUrl(episode, anilistId, lang = "sub", malId = null) {
-    const idType = malId ? "mal" : "ani";
-    const id = malId || anilistId;
-    return `https://megavid.buzz/${idType}/${id}/${episode}/${lang}?color=%23e63946&autoplay=true`;
+  const EMBED_PROVIDERS = [
+    {
+      id: "megavid",
+      name: "Megavid",
+      desc: "Primary catalog",
+      buildUrl(anime, episode, lang, malId) {
+        const route = malId ? `mal/${malId}` : `ani/${anime.id}`;
+        return `https://megavid.buzz/${route}/${episode}/${lang}?color=%23e63946&autoplay=true`;
+      },
+    },
+    {
+      id: "aniwave",
+      name: "AniWave",
+      desc: "Secondary source",
+      buildUrl(anime, episode, lang, malId) {
+        const route = malId ? `mal/${malId}` : `al/${anime.id}`;
+        return `https://megavid.buzz/aniwave/${route}/${episode}/${lang}?color=%23e63946&autoplay=true`;
+      },
+    },
+  ];
+
+  function providerById(id) {
+    return EMBED_PROVIDERS.find((p) => p.id === id) || EMBED_PROVIDERS[0];
+  }
+
+  function buildEmbedUrl(providerId, anime, episode, lang) {
+    return providerById(providerId).buildUrl(anime, episode, lang, anime.idMal || null);
   }
 
   // ----------------------------------------------------------------------------
@@ -183,11 +221,70 @@
     watchlist: "anicult_watchlist",
     history: "anicult_history",
     progress: "anicult_progress",
-    // v2: bumped to invalidate dub results cached by the old, broken probe
-    // (it never parsed the player's string payload, so every title was cached
-    // as sub-only and never re-checked).
-    dubCache: "anicult_dub_cache_v2",
+    // v3: bumped to invalidate dub results cached by the old probe, which
+    // (a) decided the whole series' dub status from episode 1, (b) cached
+    // probe timeouts as definitive "no dub", and (c) used a `max_dub`
+    // heuristic that poisoned every later episode as sub-only. The new cache
+    // is per-episode/per-provider and only stores verified results.
+    dubCache: "anicult_dub_cache_v3",
+    prefs: "anicult_prefs_v1",
+    epProgress: "anicult_ep_progress_v1",
   };
+
+  // User player preferences — saved whenever the user changes anything, and
+  // restored on the next visit so audio, provider, speed, quality and the
+  // playback toggles all "stick".
+  const DEFAULT_PREFS = {
+    lang: "sub",
+    provider: "megavid",
+    speed: 1,
+    quality: "auto",
+    autoNext: true,
+    skipIntro: true,
+    skipOutro: false,
+  };
+
+  function getPrefs() {
+    return { ...DEFAULT_PREFS, ...(storageGet(KEYS.prefs) || {}) };
+  }
+
+  function setPrefs(patch) {
+    const next = { ...getPrefs(), ...patch };
+    storageSet(KEYS.prefs, next);
+    return next;
+  }
+
+  // Per-episode playback position ("resume from here"). Keyed by anime+episode;
+  // written on a throttle while playing, read back when the episode is reopened.
+  function getEpProgress(animeId, episode) {
+    const all = storageGet(KEYS.epProgress) || {};
+    const e = all[animeId + "_" + episode];
+    return e && typeof e === "object" ? e : null;
+  }
+
+  function setEpProgress(animeId, episode, time, duration) {
+    const all = storageGet(KEYS.epProgress) || {};
+    all[animeId + "_" + episode] = {
+      time: Math.max(0, time || 0),
+      duration: duration || 0,
+      updatedAt: Date.now(),
+    };
+    // Keep the store bounded: drop the oldest entries beyond 300.
+    const keys = Object.keys(all);
+    if (keys.length > 300) {
+      keys
+        .sort((a, b) => all[a].updatedAt - all[b].updatedAt)
+        .slice(0, keys.length - 300)
+        .forEach((k) => delete all[k]);
+    }
+    storageSet(KEYS.epProgress, all);
+  }
+
+  function clearEpProgress(animeId, episode) {
+    const all = storageGet(KEYS.epProgress) || {};
+    delete all[animeId + "_" + episode];
+    storageSet(KEYS.epProgress, all);
+  }
 
   function storageGet(key) {
     try {
@@ -206,57 +303,123 @@
   }
 
   // Dub cache shape:
-  //   "<animeId>_<ep>"          -> { available, timestamp }  per-episode result
-  //   "<animeId>"               -> { available, timestamp }  series-level result
-  //   "<animeId>_max_dub"       -> highest episode number confirmed dubbed
-  //                                (any episode above it is treated as sub-only)
-  function setDubCached(id, episode, isAvailable) {
-    if (typeof episode === "boolean") {
-      isAvailable = episode;
-      episode = 1;
-    }
+  //   "<animeId>"                      -> { available: true }  series-level positive
+  //   "<animeId>_<ep>"                 -> { available }         per-episode result
+  //   "<animeId>_<ep>_<providerId>"    -> { available }         per-episode/provider result
+  //
+  // IMPORTANT: only *verified* outcomes are stored. A probe that times out
+  // returns null ("unknown") and writes nothing, so a busy CDN or a slow
+  // first load can never poison the cache into hiding a real dub. Negative
+  // results also expire (see TTLs below) because dubs are often added later
+  // AND because a provider outage (retryable 503s, busy CDNs) can masquerade
+  // as "no dub" — a negative cached during an outage must not hide a dub
+  // once the backend recovers.
+  const DUB_FALSE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+  // Probe errors are the least trustworthy negative (hidden iframe, possibly
+  // during a provider outage) — expire them fast so the dub gets re-checked.
+  const DUB_PROBE_FALSE_TTL_MS = 6 * 60 * 60 * 1000;
+
+  function dubEntryValue(entry) {
+    if (typeof entry === "boolean") return entry;
+    if (entry && typeof entry === "object") return entry.available;
+    return undefined;
+  }
+
+  function dubEntryFresh(entry, ttlMs) {
+    if (!entry || typeof entry !== "object" || !entry.timestamp) return true;
+    // Negatives written before the TTL field existed (v3 early entries) default
+    // to the short probe TTL so any poisoned data self-heals quickly.
+    const effective = ttlMs || (entry.available === false ? DUB_PROBE_FALSE_TTL_MS : DUB_FALSE_TTL_MS);
+    return Date.now() - entry.timestamp < effective;
+  }
+
+  // Provider outages surface as errors with retryable hints ("temporarily
+  // unavailable", "busy", "503", "try again"). Such an error is NOT evidence
+  // that a dub doesn't exist — only that it couldn't be checked right now — so
+  // negatives recorded from retryable errors must expire fast.
+  function isRetryableDubError(message) {
+    if (!message) return false;
+    return /temporarily|busy|503|retry|try again|source may be/i.test(
+      String(message),
+    );
+  }
+
+  function setDubCached(id, episode, isAvailable, providerId = null, ttlMs = DUB_FALSE_TTL_MS) {
     const cache = getDubCache();
-    const epKey = id + "_" + (episode || 1);
-    cache[epKey] = { available: isAvailable, timestamp: Date.now() };
-    if (!isAvailable) {
-      const currentMax = cache[id + "_max_dub"];
-      cache[id + "_max_dub"] = Math.min(
-        currentMax !== undefined ? currentMax : 9999,
-        (episode || 1) - 1,
-      );
+    const ep = episode || 1;
+    const key = providerId
+      ? `${id}_${ep}_${providerId}`
+      : `${id}_${ep}`;
+    cache[key] = {
+      available: isAvailable,
+      timestamp: Date.now(),
+      // Long-lived negatives come from real playback failures; probe-derived
+      // negatives use the shorter TTL so transient outages self-heal.
+      ttl: isAvailable ? undefined : ttlMs,
+    };
+    // Keep the store bounded: drop the oldest entries beyond a cap so a large
+    // library (per-episode/per-provider keys) can't grow toward the
+    // localStorage limit.
+    const keys = Object.keys(cache);
+    if (keys.length > 1500) {
+      keys
+        .sort((a, b) => (cache[a].timestamp || 0) - (cache[b].timestamp || 0))
+        .slice(0, keys.length - 1500)
+        .forEach((k) => delete cache[k]);
     }
-    if (!isAvailable || episode === 1 || cache[id] === undefined) {
-      cache[id] = { available: isAvailable, timestamp: Date.now() };
+
+    const existingSeries = dubEntryValue(cache[id]);
+    if (isAvailable) {
+      // A confirmed dub on ANY episode is solid series-level knowledge.
+      cache[id] = { available: true, timestamp: Date.now() };
+    } else if (existingSeries === undefined) {
+      // A definitive per-episode miss is good evidence the series is sub-only
+      // — BUT only when EVERY provider is confirmed to lack the dub too, so a
+      // single provider missing an episode can never hide a dub the other one
+      // serves. Caching this lets the watch page and the "Dubbed only" filter
+      // skip re-probing every episode of the same show; the TTL above ensures
+      // it gets re-checked later.
+      const othersConfirmedFalse = EMBED_PROVIDERS.filter(
+        (p) => p.id !== providerId,
+      ).every((p) => isDubCached(id, ep, p.id) === false);
+      if (othersConfirmedFalse) {
+        cache[id] = {
+          available: false,
+          timestamp: Date.now(),
+          ttl: ttlMs,
+        };
+      }
     }
     storageSet(KEYS.dubCache, cache);
   }
 
-  function isDubCached(id, episode = null) {
+  function isDubCached(id, episode = null, providerId = null) {
     const cache = getDubCache();
     if (episode) {
-      const epEntry = cache[id + "_" + episode];
+      const epKey = providerId ? `${id}_${episode}_${providerId}` : `${id}_${episode}`;
+      const epEntry = cache[epKey];
       if (epEntry !== undefined) {
-        if (typeof epEntry === "boolean") return epEntry;
-        if (typeof epEntry === "object" && epEntry !== null)
-          return epEntry.available;
-      }
-      const maxDub = cache[id + "_max_dub"];
-      if (maxDub !== undefined && episode > maxDub) {
-        return false;
+        const v = dubEntryValue(epEntry);
+        if (v === true) return true;
+        // Expired negatives are treated as unknown so the dub gets re-probed
+        // (a transient error or a later dub release shouldn't hide it forever).
+        if (v === false) return dubEntryFresh(epEntry, epEntry.ttl) ? false : null;
       }
     }
     const entry = cache[id];
     if (entry === undefined) return null;
-    if (typeof entry === "boolean") return entry;
-    if (typeof entry === "object" && entry !== null) return entry.available;
-    return null;
+    const v = dubEntryValue(entry);
+    if (v === undefined) return null;
+    if (v === false) return dubEntryFresh(entry, entry.ttl) ? false : null;
+    return v;
   }
 
   // ----------------------------------------------------------------------------
   // 5. DUB AVAILABILITY DETECTION
   // Feature: "DUB" badges and the Sub/Dub player toggle. A hidden iframe loads
   // the dub source; the embed notifies us via postMessage whether it can play.
-  // Results are cached (see KEYS.dubCache) so each anime is only probed once.
+  // Results are cached per episode AND per provider (see KEYS.dubCache), so each
+  // (anime, episode, provider) combination is only probed once.
   // ----------------------------------------------------------------------------
   // Megavid/KissKH players post player events to the parent frame as JSON
   // *strings* (e.g. '{"channel":"kisskh","event":"time",...}'). Normalize the
@@ -274,17 +437,41 @@
     return d;
   }
 
-  function probeDub(anime, episode = 1) {
-    const cached = isDubCached(anime.id, episode);
+  // Probes whether `provider` serves a DUB of (anime, episode). Resolves to
+  // true / false / null (null = unknown, e.g. probe timed out — never cached).
+  //
+  // The player only confirms a source by actually starting playback: it posts
+  // `time` / `complete` / `watching-log` events while playing and `error` when a
+  // stream fails. A `display:none` iframe can't autoplay, so the probe is parked
+  // off-screen instead and granted autoplay permission.
+  //
+  // On `error` the player self-heals by reloading itself (?refresh=1), so a
+  // single error event is NOT treated as final: we wait a short grace window
+  // for playback events to override it before concluding "no dub".
+  // Live dub probes, tracked so a page navigation can tear them down instead of
+  // leaving hidden video players loading in the background (resource leak).
+  const activeDubProbes = new Set();
+
+  // Force-cleanup every in-flight probe. Idempotent (each probe's cleanup only
+  // runs once), resolves the pending promises with null ("unknown"), removes the
+  // hidden iframes and stops their play-command timers and message listeners.
+  function cancelActiveDubProbes() {
+    activeDubProbes.forEach((stop) => {
+      try {
+        stop();
+      } catch (err) {}
+    });
+    activeDubProbes.clear();
+  }
+
+  function probeDub(anime, episode = 1, providerId = null) {
+    const provider = providerId || getPrefs().provider;
+    const cached = isDubCached(anime.id, episode, provider);
     if (cached !== null) return Promise.resolve(cached);
 
     return new Promise((resolve) => {
-      // The megavid player only confirms a source by actually starting playback:
-      // it posts `time`, `complete` and `watching-log` events while playing, and
-      // `error` when a stream fails. A `display:none` iframe can't autoplay, so
-      // park the probe off-screen instead and grant it autoplay permission.
       const iframe = document.createElement("iframe");
-      iframe.src = makeEmbedUrl(episode, anime.id, "dub", anime.idMal || null);
+      iframe.src = buildEmbedUrl(provider, anime, episode, "dub");
       iframe.setAttribute("allow", "autoplay; fullscreen");
       iframe.setAttribute("loading", "eager");
       iframe.style.cssText =
@@ -292,42 +479,110 @@
       document.body.appendChild(iframe);
 
       let settled = false;
-      function cleanup(res) {
+      let errorTimer = null;
+      let playTimer = null;
+
+      // Probe negatives expire fast (DUB_PROBE_FALSE_TTL_MS): a hidden-iframe
+      // error could be a transient provider outage, not a missing dub.
+      const probeTtl = DUB_PROBE_FALSE_TTL_MS;
+
+      function cleanup(res, cacheIt) {
         if (settled) return;
         settled = true;
+        activeDubProbes.delete(stop);
+        if (errorTimer) clearTimeout(errorTimer);
+        if (playTimer) clearInterval(playTimer);
         window.removeEventListener("message", onMsg);
         if (iframe.parentNode) iframe.parentNode.removeChild(iframe);
-        setDubCached(anime.id, episode, res);
+        if (cacheIt)
+          setDubCached(anime.id, episode, res, provider, probeTtl);
         resolve(res);
       }
+
+      // Registered BEFORE the iframe loads so navigation can cancel us anytime.
+      const stop = () => cleanup(null, false);
+      activeDubProbes.add(stop);
+
+      // The megavid player gates autoplay behind a "viewable" check, which never
+      // fires for an off-screen probe iframe — so its own autoplay never starts
+      // and it never reports the time/watching-log events we need to confirm a
+      // source. Kick it: the player listens for play/unmute commands when
+      // autoplay is enabled, so we re-post them a few times to cover its boot
+      // time. (This is also the historical root cause of "dub never detected".)
+      let playAttempts = 0;
+      playTimer = setInterval(() => {
+        playAttempts++;
+        if (settled) {
+          clearInterval(playTimer);
+          return;
+        }
+        try {
+          iframe.contentWindow.postMessage(
+            JSON.stringify({ channel: "kisskh", event: "play" }),
+            "*",
+          );
+          iframe.contentWindow.postMessage(JSON.stringify({ type: "play" }), "*");
+        } catch (err) {}
+        if (playAttempts >= 8) clearInterval(playTimer);
+      }, 1200);
 
       function onMsg(e) {
         const d = parseKisskhMessage(e);
         if (!d || e.source !== iframe.contentWindow) return;
 
-        if (d.type === "watching-log") {
-          cleanup(true);
+        // Playback actually started — the dub exists.
+        if (
+          d.type === "watching-log" ||
+          (d.channel === "kisskh" && (d.event === "time" || d.event === "complete"))
+        ) {
+          cleanup(true, true);
           return;
         }
-        if (d.channel !== "kisskh") return;
 
-        if (d.event === "time" || d.event === "complete") {
-          cleanup(true);
-        } else if (
-          d.event === "error" ||
-          d.event === "unavailable" ||
-          d.event === "no_source"
+        if (
+          d.channel === "kisskh" &&
+          (d.event === "error" ||
+            d.event === "unavailable" ||
+            d.event === "no_source")
         ) {
-          cleanup(false);
+          // Give the player's automatic ?refresh=1 reload a moment to start
+          // playback before we declare the dub missing. A retryable error
+          // (busy CDN / provider outage) is NOT evidence the dub is absent —
+          // resolve as unknown and cache nothing so it gets re-probed later.
+          if (errorTimer === null) {
+            const retryable = isRetryableDubError(d.message);
+            errorTimer = setTimeout(
+              () => cleanup(retryable ? null : false, !retryable),
+              1500,
+            );
+          }
         }
       }
 
       window.addEventListener("message", onMsg);
 
-      setTimeout(() => {
-        cleanup(false);
-      }, 6000);
+      // Timeout: leave the result unknown (null) and cache nothing.
+      setTimeout(() => cleanup(null, false), 8000);
     });
+  }
+
+  // Series-level "does this anime have dubs anywhere?" — used for DUB badges
+  // on cards and the search "Dubbed only" filter. Any provider counts: an
+  // episode-1 dub on EITHER backend is a series-level positive. Unknowns are
+  // resolved by probing episode 1 on every provider whose result we don't
+  // already know (best-effort, cached answer).
+  function probeDubSeries(anime) {
+    const unknown = EMBED_PROVIDERS.filter(
+      (p) => isDubCached(anime.id, 1, p.id) === null,
+    );
+    if (unknown.length === 0) {
+      return Promise.resolve(
+        EMBED_PROVIDERS.some((p) => isDubCached(anime.id, 1, p.id) === true),
+      );
+    }
+    return Promise.all(
+      unknown.map((p) => probeDub(anime, 1, p.id)),
+    ).then((rs) => rs.some((r) => r === true));
   }
 
   // ----------------------------------------------------------------------------
@@ -410,8 +665,14 @@
   // it into template literals.
   function esc(str) {
     const d = document.createElement("div");
-    d.textContent = str;
-    return d.innerHTML;
+    d.textContent = str == null ? "" : String(str);
+    // d.innerHTML escapes <, > and & but NOT quotes — which is unsafe when the
+    // output lands inside an attribute value (e.g. alt="...", title="...") or
+    // a single-quoted url('...'). Escape quotes explicitly on top.
+    return d.innerHTML
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#39;")
+      .replace(/`/g, "&#96;");
   }
 
   function stripHtml(html) {
@@ -514,6 +775,8 @@
       `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>`,
     clock: (s = 16) =>
       `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>`,
+    skipForward: (s = 16) =>
+      `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 4 15 12 5 20 5 4"/><line x1="19" y1="5" x2="19" y2="19"/></svg>`,
   };
 
   // Reusable anime card used across home feeds and search results.
@@ -548,15 +811,24 @@
     return { path, params };
   }
 
+  // Incremented on every route change. Async page renderers capture it on entry
+  // and bail out (instead of touching the DOM) if a newer route took over while
+  // they were awaiting — prevents stale continuations from overwriting the
+  // currently displayed page (e.g. a slow dub-probe batch on the search page).
+  let routeGen = 0;
+
   // Dispatches the current hash to the matching page renderer. Every renderer
   // replaces the #app content and may register a cleanup callback on
   // `currentPage.destroy` (timers, observers, listeners).
   async function route() {
+    routeGen++;
     // Tear down the previous page before rendering the new one.
     if (currentPage.destroy) {
       currentPage.destroy();
       currentPage = { destroy: null };
     }
+    // Stop hidden dub-probe players left behind by the previous page.
+    cancelActiveDubProbes();
     const { path, params } = parseHash();
 
     app.innerHTML = `<div class="loading"><div class="loading-spinner"></div><div>Loading...</div></div>`;
@@ -590,12 +862,14 @@
   // Updated / Popular sections. "Popular" is lazily paginated via an
   // IntersectionObserver on a sentinel loader element.
   async function renderHome() {
+    const gen = routeGen;
     const [topAiring, trending, recent, popular] = await Promise.all([
       getTopAiring(),
       getTrending(1, 20),
       getRecentlyUpdated(1, 20),
       getPopular(1, 20),
     ]);
+    if (gen !== routeGen) return; // navigated away while fetching
 
     let html = "";
 
@@ -767,6 +1041,7 @@
   // filters, 6 sort options, and a "Dubbed only" toggle that probes unknown
   // titles on demand (see section 5).
   async function renderSearch(params) {
+    const gen = routeGen;
     const q = params.get("q") || "";
     const page = parseInt(params.get("page")) || 1;
     const format = params.get("format") || "";
@@ -776,13 +1051,22 @@
     let result;
     if (q) result = await searchAnime(q, page, 24, format || null, sort);
     else result = await browseAnime(page, 24, sort, format || null);
+    if (gen !== routeGen) return; // navigated away while fetching
 
     if (dub && result && result.media) {
       const unknownItems = result.media.filter(
         (a) => isDubCached(a.id) === null,
       );
       if (unknownItems.length > 0) {
-        await Promise.all(unknownItems.map((a) => probeDub(a)));
+        // Probe in small batches so we never spawn dozens of hidden players
+        // (each one briefly boots a real video element) at the same time.
+        const BATCH = 5;
+        for (let i = 0; i < unknownItems.length; i += BATCH) {
+          await Promise.all(
+            unknownItems.slice(i, i + BATCH).map((a) => probeDubSeries(a)),
+          );
+          if (gen !== routeGen) return; // user left mid-probe
+        }
       }
       result.media = result.media.filter((a) => isDubCached(a.id) === true);
     }
@@ -885,7 +1169,9 @@
   // banner, and the episodes grid. Released episodes are links; unaired ones
   // are locked with TBA/countdown labels (see section 8).
   async function renderAnimeDetail(id) {
+    const gen = routeGen;
     const anime = await getAnimeById(id);
+    if (gen !== routeGen) return; // navigated away while loading
     const t = title(anime);
     const engT = anime.title.english;
     const nativeT = anime.title.native;
@@ -1130,14 +1416,24 @@
     return `${mins}m ${secs}s`;
   }
 
+  // "m:ss" clock used for saved playback positions.
+  function formatTime(sec) {
+    const s = Math.max(0, Math.floor(sec || 0));
+    return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+  }
+
   // Watch page (player): loads the anime, blocks unaired episodes (canWatch),
-  // renders the embed iframe, and wires up sub/dub switching, auto-next, and
-  // countdown timers. History and progress are only recorded for episodes that
-  // are actually playable. This is the most stateful page — most logic lives
-  // in closures (unavailableHtml, render, onPlayerMessage, discoverSources)
-  // that share the page-level state declared below.
+  // renders the selected provider's embed iframe, and wires up sub/dub + source
+  // switching, auto-next with countdown, skip-intro/outro buttons, remembered
+  // playback position (resume), preference persistence, and airing timers.
+  // History and progress are only recorded for episodes that are actually
+  // playable. This is the most stateful page — most logic lives in closures
+  // (unavailableHtml, render, controlBarHtml, onPlayerMessage, discoverSources,
+  // refreshDub) that share the page-level state declared below.
   async function renderWatch(id, episode) {
+    const gen = routeGen;
     const anime = await getAnimeById(id);
+    if (gen !== routeGen) return; // navigated away while loading the anime
     const t = title(anime);
     const airedEps = getAiredCount(anime);
     const plannedEps = getPlannedCount(anime);
@@ -1161,21 +1457,233 @@
       setProgress(anime.id, episode);
     }
 
-    let sources = [],
-      activeSource = 0,
-      loading = true,
-      error = null,
-      embedUrl = "",
-      currentLang = "sub",
-      isDubAvailable = isDubCached(anime.id);
+    // ---- Player state (shared by every closure below) ----
+    const savedPrefs = getPrefs();
+    let prefs = { ...savedPrefs };
+    let providerId = EMBED_PROVIDERS.some((p) => p.id === savedPrefs.provider)
+      ? savedPrefs.provider
+      : EMBED_PROVIDERS[0].id;
+    let currentLang = savedPrefs.lang;
+    let embedUrl = "";
+    let loading = true;
+    let error = null;
+    let customUrl = null;
 
-    if (isDubAvailable === null && canWatch) {
-      isDubAvailable = await probeDub(anime);
-    } else {
-      isDubAvailable = isDubAvailable === true;
+    // Dub availability for THIS episode on THIS provider. null = unknown yet.
+    let dubState = { available: null, probing: false };
+    let dubProbeSeq = 0;
+
+    // Playback telemetry reported by the embed (channel "kisskh" / watching-log).
+    let playback = { time: 0, duration: 0 };
+    let lastProgressSave = 0;
+    let pendingError = null; // { timer, atTime } — grace window for auto-reload
+
+    // One-shot overlay / behaviour flags.
+    let resumeShown = false;
+    let autoNextTimer = null;
+    let autoNextShown = false;
+    let skipIntroDone = false;
+    let skipOutroDone = false;
+    let introAutoSkipped = false;
+    let outroAutoSkipped = false;
+    let fallbackUsed = false;
+    let episodeCompleted = false;
+
+    function introEndFor() {
+      const d = playback.duration;
+      return d > 0 ? Math.min(95, Math.max(45, d * 0.2)) : 95;
     }
 
-    if (!isDubAvailable) currentLang = "sub";
+    // Best-effort seek into the embed. The megavid player (JWPlayer) currently
+    // only handles play/unmute commands, so this is forward-compatible: a source
+    // that supports seek commands will honor one of these shapes, and on megavid
+    // it is a harmless no-op (the player's own control bar still lets users skip).
+    function attemptSeek(seconds) {
+      const iframe = app.querySelector("iframe");
+      if (!iframe || !iframe.contentWindow || typeof seconds !== "number") return;
+      [
+        JSON.stringify({ channel: "kisskh", event: "seek", time: seconds }),
+        JSON.stringify({ channel: "kisskh", type: "seek", time: seconds }),
+        JSON.stringify({ type: "seek", time: seconds }),
+      ].forEach((m) => {
+        try {
+          iframe.contentWindow.postMessage(m, "*");
+        } catch (err) {}
+      });
+    }
+
+    // Forward a speed/quality preference to the player (best-effort; ignored by
+    // providers that don't support the command).
+    function attemptSeekControl(kind, value) {
+      const iframe = app.querySelector("iframe");
+      if (!iframe || !iframe.contentWindow) return;
+      try {
+        iframe.contentWindow.postMessage(
+          JSON.stringify({ channel: "kisskh", type: kind, value }),
+          "*",
+        );
+      } catch (err) {}
+    }
+
+    // Ensures dubState reflects whether THIS provider serves a dub of THIS
+    // episode. Cached answers return immediately; unknown ones are probed via a
+    // hidden iframe (section 5) in the background so the page paints fast and
+    // the Dub chip lights up when the answer arrives. Only the Audio chips are
+    // re-rendered here — never the whole page — so playback is not restarted
+    // when a probe resolves mid-episode.
+    async function refreshDub() {
+      if (!canWatch) return;
+      const seq = ++dubProbeSeq;
+      const probeGen = routeGen;
+      const cached = isDubCached(anime.id, episode, providerId);
+      if (cached !== null) {
+        dubState = { available: cached, probing: false };
+        // Only a *definitive* no-dub downgrades a dub request to sub. A stale
+        // positive/false is authoritative here.
+        if (currentLang === "dub" && cached === false) {
+          currentLang = "sub";
+          prefs = setPrefs({ lang: "sub" });
+          discoverSources();
+          return;
+        }
+        refreshDubUI();
+        return;
+      }
+      dubState = { available: null, probing: true };
+      refreshDubUI();
+      // Supersede any earlier probe (e.g. a provider/lang switch started one
+      // that's still loading its hidden player) so they don't pile up.
+      cancelActiveDubProbes();
+      const res = await probeDub(anime, episode, providerId);
+      if (seq !== dubProbeSeq || probeGen !== routeGen) return;
+      dubState = { available: res, probing: false };
+      // res === null means UNKNOWN (timeout / retryable outage) — keep the
+      // current language and leave the chip re-checkable rather than silently
+      // downgrading a dub viewer during a transient provider hiccup.
+      if (currentLang === "dub" && res === false) {
+        currentLang = "sub";
+        prefs = setPrefs({ lang: "sub" });
+        discoverSources();
+      } else {
+        refreshDubUI();
+      }
+    }
+
+    function handleLangClick(lang) {
+      if (lang === currentLang) return;
+      if (lang === "dub" && dubState.available !== true) {
+        refreshDub();
+        return;
+      }
+      currentLang = lang;
+      prefs = setPrefs({ lang });
+      discoverSources();
+    }
+
+    function hideResumeOverlay() {
+      const overlay = document.getElementById("resume-overlay");
+      if (overlay) overlay.classList.remove("show");
+    }
+
+    // Rebuilds just the Audio chip group in the control bar (no player restart).
+    function refreshDubUI() {
+      const audioGroup = app.querySelector(".ctl-group .ctl-chips");
+      if (!audioGroup) return;
+      audioGroup.innerHTML = audioChipsHtml();
+      audioGroup.querySelectorAll("[data-lang]").forEach((btn) => {
+        btn.addEventListener("click", () => handleLangClick(btn.dataset.lang));
+      });
+      const checkBtn = audioGroup.querySelector("#check-dub-btn");
+      if (checkBtn) checkBtn.addEventListener("click", refreshDub);
+    }
+
+    function audioChipsHtml() {
+      const dub = dubState.available;
+      let chips = `<button class="ctl-chip ${currentLang === "sub" ? "ctl-chip-active" : ""}" data-lang="sub">Sub</button>`;
+      if (dub === true) {
+        chips += `<button class="ctl-chip ${currentLang === "dub" ? "ctl-chip-active" : ""}" data-lang="dub">Dub</button>`;
+      } else if (dub === null && dubState.probing) {
+        chips += `<button class="ctl-chip ctl-chip-disabled" title="Checking for a dubbed version…">Dub…</button>`;
+      } else if (dub === null) {
+        chips += `<button class="ctl-chip ctl-chip-disabled" id="check-dub-btn" title="Check whether a dubbed version exists">Dub…</button>`;
+      } else {
+        chips += `<button class="ctl-chip ctl-chip-disabled" title="No dubbed version for this episode on this source">Dub</button>`;
+      }
+      return chips;
+    }
+
+    // The control bar: Audio (Sub/Dub), Source (provider chips) and playback
+    // settings (Auto Next / Skip Intro / Skip Outro toggles, speed + quality
+    // selects). Every change is persisted via setPrefs.
+    function controlBarHtml() {
+      const audioChips = audioChipsHtml();
+
+      const providerChips = EMBED_PROVIDERS.map(
+        (p) =>
+          `<button class="ctl-chip ${providerId === p.id ? "ctl-chip-active" : ""}" data-provider="${p.id}" title="${esc(p.desc)}">${esc(p.name)}</button>`,
+      ).join("");
+      const customChip = customUrl
+        ? `<button class="ctl-chip ctl-chip-active ctl-chip-custom" title="Custom embed URL">Custom</button>`
+        : "";
+
+      const speeds = [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2];
+      const qualities = [
+        { v: "auto", l: "Auto" },
+        { v: "1080", l: "1080p" },
+        { v: "720", l: "720p" },
+        { v: "480", l: "480p" },
+      ];
+
+      return `
+      <div class="player-controls">
+        <div class="ctl-groups">
+          <div class="ctl-group">
+            <span class="ctl-label">Audio</span>
+            <div class="ctl-chips">${audioChips}</div>
+          </div>
+          <div class="ctl-group">
+            <span class="ctl-label">Source</span>
+            <div class="ctl-chips">${providerChips}${customChip}</div>
+          </div>
+        </div>
+        <div class="ctl-settings">
+          <label class="ctl-toggle" title="Automatically play the next episode when this one ends">
+            <input type="checkbox" data-pref="autoNext" ${prefs.autoNext ? "checked" : ""} />
+            <span class="ctl-toggle-track"><span class="ctl-toggle-thumb"></span></span>
+            <span class="ctl-toggle-label">Auto Next</span>
+          </label>
+          <label class="ctl-toggle" title="Show a Skip Intro button while the opening plays">
+            <input type="checkbox" data-pref="skipIntro" ${prefs.skipIntro ? "checked" : ""} />
+            <span class="ctl-toggle-track"><span class="ctl-toggle-thumb"></span></span>
+            <span class="ctl-toggle-label">Skip Intro</span>
+          </label>
+          <label class="ctl-toggle" title="Show a Skip Outro button near the end">
+            <input type="checkbox" data-pref="skipOutro" ${prefs.skipOutro ? "checked" : ""} />
+            <span class="ctl-toggle-track"><span class="ctl-toggle-thumb"></span></span>
+            <span class="ctl-toggle-label">Skip Outro</span>
+          </label>
+          <label class="ctl-select">
+            <span>Speed</span>
+            <select data-pref="speed">${speeds
+              .map(
+                (s) =>
+                  `<option value="${s}" ${prefs.speed == s ? "selected" : ""}>${s}×</option>`,
+              )
+              .join("")}</select>
+          </label>
+          <label class="ctl-select">
+            <span>Quality</span>
+            <select data-pref="quality">${qualities
+              .map(
+                (q) =>
+                  `<option value="${q.v}" ${prefs.quality === q.v ? "selected" : ""}>${q.l}</option>`,
+              )
+              .join("")}</select>
+          </label>
+        </div>
+        <div class="ctl-hint">Playback position is saved automatically; speed &amp; quality are forwarded to the player when the source supports them.</div>
+      </div>`;
+    }
 
     function unavailableHtml() {
       if (notYetReleased) {
@@ -1230,6 +1738,28 @@
       } else if (embedUrl) {
         html += `<iframe src="${esc(embedUrl)}" allowfullscreen loading="lazy" allow="autoplay; fullscreen"></iframe>`;
         html += `<div class="episode-badge">Episode ${episode}</div>`;
+        html += `<button class="player-skip-btn skip-intro" id="skip-intro-btn" aria-label="Skip opening">${icons.skipForward(14)} Skip Intro</button>`;
+        html += `<button class="player-skip-btn skip-outro" id="skip-outro-btn" aria-label="Skip ending">${icons.skipForward(14)} Skip Outro</button>`;
+        html += `<div class="player-overlay resume-overlay" id="resume-overlay">
+          <div class="resume-card">
+            <div class="resume-title">Resume watching?</div>
+            <div class="resume-sub" id="resume-sub"></div>
+            <div class="resume-actions">
+              <button class="btn btn-outline btn-sm" id="resume-restart">Start Over</button>
+              <button class="btn btn-primary btn-sm" id="resume-go">Resume</button>
+            </div>
+          </div>
+        </div>`;
+        html += `<div class="player-overlay auto-next-overlay" id="auto-next-overlay">
+          <div class="auto-next-card">
+            <div class="auto-next-title">Episode ${episode} finished</div>
+            <div class="auto-next-sub" id="auto-next-label"></div>
+            <div class="auto-next-actions">
+              <button class="btn btn-outline btn-sm" id="auto-next-cancel">Cancel</button>
+              <a class="btn btn-primary btn-sm" id="auto-next-go" href="#/watch/${anime.id}/${Math.min(episode + 1, airedEps)}">Play Next ${icons.arrowRight(14)}</a>
+            </div>
+          </div>
+        </div>`;
       } else {
         html += unavailableHtml();
       }
@@ -1245,29 +1775,17 @@
         }
       }
 
-      if (canWatch) {
-        if (isDubAvailable) {
-          html += `<div class="player-lang-toggle">
-            <button class="lang-btn ${currentLang === "sub" ? "lang-btn-active" : ""}" data-lang="sub">Sub</button>
-            <button class="lang-btn ${currentLang === "dub" ? "lang-btn-active" : ""}" data-lang="dub">Dub</button>
-          </div>`;
-        } else {
-          html += `<div class="player-lang-toggle">
-            <span class="lang-btn lang-btn-active" style="cursor:default">Subtitled</span>
-          </div>`;
-        }
-      }
-
-      if (sources.length > 2) {
-        html += `<div class="player-source-list">`;
-        sources.forEach((s, i) => {
-          html += `<button class="player-source-btn ${i === activeSource ? "player-source-btn-active" : ""}" data-source-index="${i}">${esc(s.name)}</button>`;
-        });
-        html += `</div>`;
-      }
+      if (canWatch) html += controlBarHtml();
 
       if (error) {
-        html += `<div class="embed-error">${esc(error)} <button class="btn btn-outline btn-sm" id="retry-btn">Retry</button></div>`;
+        const other = EMBED_PROVIDERS.find((p) => p.id !== providerId);
+        html += `<div class="embed-error">
+          <div class="embed-error-text">${esc(error)}</div>
+          <div class="embed-error-actions">
+            <button class="btn btn-outline btn-sm" id="retry-btn">Retry</button>
+            ${other && !customUrl ? `<button class="btn btn-outline btn-sm" id="switch-provider-btn">Try ${esc(other.name)}</button>` : ""}
+          </div>
+        </div>`;
       }
 
       if (!loading && !embedUrl && canWatch) {
@@ -1298,65 +1816,317 @@
       html += `</div>`;
       app.innerHTML = html;
 
-      document.querySelectorAll("[data-source-index]").forEach((btn) => {
+      // Audio chips (Sub / Dub).
+      document.querySelectorAll("[data-lang]").forEach((btn) => {
+        btn.addEventListener("click", () => handleLangClick(btn.dataset.lang));
+      });
+
+      // Source (provider) chips.
+      document.querySelectorAll("[data-provider]").forEach((btn) => {
         btn.addEventListener("click", () => {
-          const idx = parseInt(btn.dataset.sourceIndex);
-          if (idx !== activeSource) {
-            activeSource = idx;
-            embedUrl = sources[idx].url;
-            render();
+          const pid = btn.dataset.provider;
+          if (pid === providerId) return;
+          providerId = pid;
+          customUrl = null;
+          prefs = setPrefs({ provider: pid });
+          if (
+            currentLang === "dub" &&
+            isDubCached(anime.id, episode, pid) === false
+          ) {
+            currentLang = "sub";
+            prefs = setPrefs({ lang: "sub" });
           }
+          refreshDub();
+          discoverSources();
         });
       });
 
-      document.querySelectorAll("[data-lang]").forEach((btn) => {
-        btn.addEventListener("click", () => {
-          const lang = btn.dataset.lang;
-          if (lang !== currentLang) {
-            currentLang = lang;
-            discoverSources();
-          }
+      // Persisted settings (toggles + selects).
+      document.querySelectorAll("[data-pref]").forEach((el) => {
+        const key = el.dataset.pref;
+        const isCheck = el.type === "checkbox";
+        el.addEventListener("change", () => {
+          const raw = isCheck ? el.checked : el.value;
+          const val = !isCheck && key === "speed" ? parseFloat(raw) : raw;
+          prefs = setPrefs({ [key]: val });
+          if (key === "speed") attemptSeekControl("speed", val);
+          if (key === "quality") attemptSeekControl("quality", val);
         });
       });
+
+      // Skip Intro / Skip Outro overlay buttons.
+      const introBtn = document.getElementById("skip-intro-btn");
+      if (introBtn) {
+        introBtn.addEventListener("click", () => {
+          skipIntroDone = true;
+          attemptSeek(introEndFor());
+          introBtn.classList.remove("show");
+        });
+      }
+      const outroBtn = document.getElementById("skip-outro-btn");
+      if (outroBtn) {
+        outroBtn.addEventListener("click", () => {
+          skipOutroDone = true;
+          attemptSeek(Math.max(0, playback.duration - 3));
+          outroBtn.classList.remove("show");
+        });
+      }
+
+      // Resume overlay.
+      const resumeGo = document.getElementById("resume-go");
+      if (resumeGo) {
+        resumeGo.addEventListener("click", () => {
+          const saved = getEpProgress(anime.id, episode);
+          clearEpProgress(anime.id, episode);
+          hideResumeOverlay();
+          if (saved) attemptSeek(saved.time);
+        });
+      }
+      const resumeRestart = document.getElementById("resume-restart");
+      if (resumeRestart) {
+        resumeRestart.addEventListener("click", () => {
+          clearEpProgress(anime.id, episode);
+          hideResumeOverlay();
+        });
+      }
+
+      // Auto-next overlay.
+      const autoNextCancel = document.getElementById("auto-next-cancel");
+      if (autoNextCancel) {
+        autoNextCancel.addEventListener("click", () => {
+          if (autoNextTimer) {
+            clearInterval(autoNextTimer);
+            autoNextTimer = null;
+          }
+          const overlay = document.getElementById("auto-next-overlay");
+          if (overlay) overlay.classList.remove("show");
+        });
+      }
+
+      const checkDubBtn = document.getElementById("check-dub-btn");
+      if (checkDubBtn) checkDubBtn.addEventListener("click", refreshDub);
 
       const loadBtn = document.getElementById("load-custom-url");
       if (loadBtn) {
         loadBtn.addEventListener("click", () => {
           const input = document.getElementById("custom-embed-url");
           if (input && input.value.trim()) {
-            embedUrl = input.value.trim();
-            sources.push({ id: "custom", name: "Custom", url: embedUrl });
-            activeSource = sources.length - 1;
-            render();
+            customUrl = input.value.trim();
+            discoverSources();
           }
         });
       }
 
       const retryBtn = document.getElementById("retry-btn");
-      if (retryBtn) retryBtn.addEventListener("click", discoverSources);
+      if (retryBtn) {
+        retryBtn.addEventListener("click", () => {
+          error = null;
+          discoverSources();
+        });
+      }
+
+      const switchBtn = document.getElementById("switch-provider-btn");
+      if (switchBtn) {
+        switchBtn.addEventListener("click", () => {
+          const other = EMBED_PROVIDERS.find((p) => p.id !== providerId);
+          if (other) {
+            providerId = other.id;
+            prefs = setPrefs({ provider: providerId });
+            refreshDub();
+            discoverSources();
+          }
+        });
+      }
+    }
+
+    function updatePlaybackUI() {
+      const { time, duration } = playback;
+
+      // Resume overlay — offered once, only when we have meaningful saved progress
+      // ahead of where the player started.
+      if (!resumeShown && duration > 0 && time > 2) {
+        const saved = getEpProgress(anime.id, episode);
+        if (
+          saved &&
+          saved.time > 20 &&
+          saved.time < duration - 90 &&
+          saved.time > time + 5
+        ) {
+          resumeShown = true;
+          const overlay = document.getElementById("resume-overlay");
+          const sub = document.getElementById("resume-sub");
+          if (overlay) overlay.classList.add("show");
+          if (sub) {
+            sub.textContent = `You stopped at ${formatTime(saved.time)}${
+              saved.duration ? ` of ${formatTime(saved.duration)}` : ""
+            }.`;
+          }
+        }
+      }
+
+      // Skip Intro / Skip Outro overlay windows (intro = opening minutes,
+      // outro = last ~105 seconds once the duration is known).
+      const introEnd = introEndFor();
+      const introBtn = document.getElementById("skip-intro-btn");
+      if (introBtn) {
+        const visible = time < introEnd && !skipIntroDone;
+        introBtn.classList.toggle("show", visible);
+        // With Skip Intro on, auto-attempt the skip ONCE per episode window.
+        if (visible && prefs.skipIntro && time > 1 && !introAutoSkipped) {
+          introAutoSkipped = true;
+          attemptSeek(introEnd);
+        }
+      }
+      const outroBtn = document.getElementById("skip-outro-btn");
+      if (outroBtn) {
+        const visible =
+          duration > 0 &&
+          time > duration - 105 &&
+          time < duration - 2 &&
+          !skipOutroDone;
+        outroBtn.classList.toggle("show", visible);
+        if (visible && prefs.skipOutro && !outroAutoSkipped) {
+          outroAutoSkipped = true;
+          attemptSeek(Math.max(0, duration - 3));
+        }
+      }
     }
 
     function onPlayerMessage(e) {
       const d = parseKisskhMessage(e);
-      if (!d || d.channel !== "kisskh") return;
+      if (!d) return;
       const iframe = app.querySelector("iframe");
       if (!iframe || e.source !== iframe.contentWindow) return;
-      if (d.event === "complete") {
-        if (episode < airedEps) {
-          location.hash = `#/watch/${anime.id}/${episode + 1}`;
+
+      // Playback position + duration (both watching-log and kisskh/time carry it).
+      if (
+        d.type === "watching-log" ||
+        (d.channel === "kisskh" && d.event === "time")
+      ) {
+        // Any position event after a stream error means the player's automatic
+        // ?refresh=1 reload self-healed — cancel the pending error. (Comparing
+        // positions would fail because the reload restarts from 0.)
+        if (pendingError) {
+          clearTimeout(pendingError.timer);
+          pendingError = null;
         }
-      } else if (d.event === "error" && !error) {
-        if (currentLang === "dub") {
-          setDubCached(anime.id, false);
-          isDubAvailable = false;
-          currentLang = "sub";
+        const time = typeof d.time === "number" ? d.time : d.currentTime;
+        const duration = typeof d.duration === "number" ? d.duration : 0;
+        if (typeof time === "number" && time >= 0) {
+          playback = {
+            time,
+            duration: duration > 0 ? duration : playback.duration,
+          };
+          updatePlaybackUI();
+          const now = Date.now();
+          // Never re-save a resume position once the episode has completed —
+          // handleComplete() already cleared it so the finished episode doesn't
+          // reappear in the resume overlay or watch progress.
+          if (
+            !episodeCompleted &&
+            now - lastProgressSave > 5000 &&
+            playback.time > 5
+          ) {
+            lastProgressSave = now;
+            setEpProgress(anime.id, episode, playback.time, playback.duration);
+          }
+        }
+        return;
+      }
+      if (d.channel !== "kisskh") return;
+
+      if (d.event === "complete") {
+        handleComplete();
+      } else if (d.event === "error" && !pendingError && !error) {
+        // The player auto-reloads itself once (?refresh=1) on stream errors and
+        // often self-heals, so wait a short grace window for playback to resume
+        // before declaring a real failure.
+        pendingError = {
+          timer: setTimeout(() => {
+            pendingError = null;
+            realHandleError(d.message);
+          }, 2500),
+          atTime: playback.time,
+        };
+      }
+    }
+
+    function handleComplete() {
+      // Episode watched to the end — clear the resume position and make sure the
+      // page-destroy flush below doesn't re-save it.
+      episodeCompleted = true;
+      clearEpProgress(anime.id, episode);
+      if (episode >= airedEps) return;
+      const overlay = document.getElementById("auto-next-overlay");
+      if (!overlay) {
+        location.hash = `#/watch/${anime.id}/${episode + 1}`;
+        return;
+      }
+      if (autoNextShown) return;
+      autoNextShown = true;
+      overlay.classList.add("show");
+      const label = document.getElementById("auto-next-label");
+      const goBtn = document.getElementById("auto-next-go");
+      if (goBtn) goBtn.setAttribute("href", `#/watch/${anime.id}/${episode + 1}`);
+      if (prefs.autoNext) {
+        let left = 5;
+        const tick = () => {
+          if (label) label.textContent = `Next episode in ${left}s`;
+          if (left <= 0) {
+            clearInterval(autoNextTimer);
+            autoNextTimer = null;
+            location.hash = `#/watch/${anime.id}/${episode + 1}`;
+            return;
+          }
+          left--;
+        };
+        tick();
+        autoNextTimer = setInterval(tick, 1000);
+      } else if (label) {
+        label.textContent = "Episode complete — play the next one?";
+      }
+    }
+
+    function realHandleError(message) {
+      if (error) return;
+
+      // A dub stream that errors means this provider has no working dub for this
+      // episode — record it and drop back to sub. But a retryable error (busy
+      // CDN / provider outage) only gets the short TTL so a recovered backend
+      // doesn't stay hidden for a week.
+      if (currentLang === "dub") {
+        setDubCached(
+          anime.id,
+          episode,
+          false,
+          providerId,
+          isRetryableDubError(message)
+            ? DUB_PROBE_FALSE_TTL_MS
+            : DUB_FALSE_TTL_MS,
+        );
+        dubState = { available: false, probing: false };
+        currentLang = "sub";
+        prefs = setPrefs({ lang: "sub" });
+        discoverSources();
+        return;
+      }
+
+      // Once per session, silently fall back to the other provider before
+      // surfacing an error — the whole point of having multiple sources.
+      if (!fallbackUsed && !customUrl && EMBED_PROVIDERS.length > 1) {
+        const other = EMBED_PROVIDERS.find((p) => p.id !== providerId);
+        if (other) {
+          fallbackUsed = true;
+          providerId = other.id;
+          prefs = setPrefs({ provider: providerId });
+          refreshDub();
           discoverSources();
           return;
         }
-        error =
-          d.message || "The video failed to load. Please try another source.";
-        render();
       }
+
+      error = message || "The video failed to load. Please try another source.";
+      render();
     }
 
     function discoverSources() {
@@ -1368,24 +2138,47 @@
       loading = true;
       error = null;
       embedUrl = "";
-      sources = [];
-      activeSource = 0;
-
-      const malId = anime.idMal || null;
-      const subUrl = makeEmbedUrl(episode, id, "sub", malId);
-      sources = [{ id: "sub", name: "Sub", url: subUrl }];
-      if (isDubAvailable) {
-        const dubUrl = makeEmbedUrl(episode, id, "dub", malId);
-        sources.push({ id: "dub", name: "Dub", url: dubUrl });
+      // Reset per-episode playback state when (re)loading the iframe.
+      playback = { time: 0, duration: 0 };
+      resumeShown = false;
+      skipIntroDone = false;
+      skipOutroDone = false;
+      introAutoSkipped = false;
+      outroAutoSkipped = false;
+      // A fresh iframe load is a new playback session: if the previous stream
+      // completed but the user cancelled auto-next and switched source to keep
+      // watching, re-allow progress saving for the rewatch.
+      episodeCompleted = false;
+      // If the user switches source while the auto-next countdown is up, cancel
+      // it (they're clearly still watching this episode) so a stale timer can't
+      // yank them to the next episode after the reload.
+      if (autoNextTimer) {
+        clearInterval(autoNextTimer);
+        autoNextTimer = null;
       }
-      const langIdx = sources.findIndex((s) => s.id === currentLang);
-      activeSource = langIdx >= 0 ? langIdx : 0;
-      embedUrl = sources[activeSource].url;
+      autoNextShown = false;
+      if (pendingError) {
+        clearTimeout(pendingError.timer);
+        pendingError = null;
+      }
+
+      if (customUrl) {
+        embedUrl = customUrl;
+        loading = false;
+        render();
+        return;
+      }
+      embedUrl = buildEmbedUrl(providerId, anime, episode, currentLang);
       loading = false;
       render();
     }
 
     render();
+
+    // Background dub probe for the current episode + provider — does not block
+    // the first paint. The result flips the Dub chip (and switches back to sub
+    // if we asked for a dub that isn't available).
+    if (canWatch) refreshDub();
 
     const showCountdown = nextEp && nextEpDate;
     const timer = showCountdown
@@ -1407,7 +2200,16 @@
     window.addEventListener("message", onPlayerMessage);
     currentPage.destroy = () => {
       if (timer) clearInterval(timer);
+      if (autoNextTimer) clearInterval(autoNextTimer);
+      if (pendingError) clearTimeout(pendingError.timer);
       window.removeEventListener("message", onPlayerMessage);
+      // Stop any in-flight dub probe from resolving into this (now dead) page.
+      dubProbeSeq++;
+      // Flush any unsaved position when leaving the page (unless the episode
+      // was finished, whose resume position was already cleared).
+      if (canWatch && !episodeCompleted && playback.time > 5) {
+        setEpProgress(anime.id, episode, playback.time, playback.duration);
+      }
     };
     discoverSources();
   }

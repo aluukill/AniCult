@@ -727,32 +727,296 @@ select:focus {
   flex-shrink: 0;
 }
 
-.player-source-list {
+/* ----------------------------------------------------------------------------
+   9b. PLAYER CONTROL BAR — audio (Sub/Dub) + source (provider) chips, playback
+   toggles (Auto Next / Skip Intro / Skip Outro), speed & quality selects, and
+   the overlay UI (skip buttons, resume prompt, auto-next countdown).
+   ---------------------------------------------------------------------------- */
+.player-controls {
   display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
+  flex-direction: column;
+  gap: 14px;
+  padding: 14px 16px;
   margin-bottom: 16px;
-}
-
-.player-source-btn {
-  padding: 6px 14px;
-  font-size: 13px;
-  border-radius: var(--radius);
   background: var(--bg-card);
   border: 1px solid var(--border);
-  color: var(--text-muted);
-  transition: all var(--transition);
+  border-radius: var(--radius-lg);
 }
 
-.player-source-btn:hover {
-  border-color: var(--accent);
+.ctl-groups {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
+}
+
+.ctl-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.ctl-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: var(--text-dim);
+  white-space: nowrap;
+}
+
+.ctl-chips {
+  display: flex;
+  gap: 4px;
+  padding: 3px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.ctl-chip {
+  padding: 5px 14px;
+  font-size: 12px;
+  font-weight: 600;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.ctl-chip:hover:not(.ctl-chip-disabled) {
+  color: var(--text);
+  background: var(--bg-hover);
+}
+
+.ctl-chip-active {
+  background: var(--accent);
   color: var(--text);
 }
 
-.player-source-btn-active {
+.ctl-chip-active:hover:not(.ctl-chip-disabled) {
+  background: var(--accent-hover);
+  color: var(--text);
+}
+
+.ctl-chip-disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.ctl-chip-custom {
+  background: rgba(96, 165, 250, 0.15);
+  color: #60a5fa;
+}
+
+.ctl-settings {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 14px 22px;
+}
+
+.ctl-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.ctl-toggle input {
+  position: absolute;
+  opacity: 0;
+  width: 1px;
+  height: 1px;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.ctl-toggle input:focus-visible + .ctl-toggle-track {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.ctl-toggle-track {
+  position: relative;
+  width: 34px;
+  height: 18px;
+  flex-shrink: 0;
+  border-radius: 999px;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  transition: background 0.2s ease, border-color 0.2s ease;
+}
+
+.ctl-toggle-thumb {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--text-dim);
+  transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), background 0.2s ease;
+}
+
+.ctl-toggle input:checked + .ctl-toggle-track {
+  background: var(--accent);
   border-color: var(--accent);
-  color: var(--accent);
-  background: rgba(230, 57, 70, 0.08);
+}
+
+.ctl-toggle input:checked + .ctl-toggle-track .ctl-toggle-thumb {
+  transform: translateX(16px);
+  background: var(--text);
+}
+
+.ctl-toggle-label {
+  font-size: 12px;
+  color: var(--text-muted);
+  transition: color 0.15s ease;
+}
+
+.ctl-toggle:hover .ctl-toggle-label {
+  color: var(--text);
+}
+
+.ctl-select {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.ctl-select select {
+  padding: 4px 8px;
+  font-size: 12px;
+  font-family: var(--font);
+  color: var(--text);
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  cursor: pointer;
+}
+
+.ctl-select select:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.ctl-hint {
+  font-size: 11px;
+  color: var(--text-dim);
+}
+
+/* Skip Intro / Skip Outro overlay buttons on the player. */
+.player-skip-btn {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  z-index: 12;
+  display: none;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  background: rgba(8, 8, 12, 0.78);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 999px;
+  cursor: pointer;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  transition: all 0.15s ease;
+}
+
+.player-skip-btn.show {
+  display: inline-flex;
+}
+
+.player-skip-btn:hover {
+  background: var(--accent);
+  border-color: var(--accent);
+  transform: translateY(-1px);
+}
+
+.player-skip-btn.skip-outro {
+  top: auto;
+  bottom: 16px;
+}
+
+/* Full-player overlay layer (resume prompt + auto-next countdown). */
+.player-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 15;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  background: rgba(8, 8, 12, 0.72);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+
+.player-overlay.show {
+  display: flex;
+}
+
+.resume-card,
+.auto-next-card {
+  max-width: 340px;
+  padding: 24px 28px;
+  text-align: center;
+  background: var(--bg-card);
+  border: 1px solid var(--border-hover);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+}
+
+.resume-title,
+.auto-next-title {
+  font-size: 17px;
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+
+.resume-sub,
+.auto-next-sub {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin-bottom: 16px;
+  font-variant-numeric: tabular-nums;
+}
+
+.resume-actions,
+.auto-next-actions {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.embed-error {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.embed-error-text {
+  flex: 1;
+  min-width: 200px;
+}
+
+.embed-error-actions {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
 }
 
 /* ----------------------------------------------------------------------------
@@ -1253,38 +1517,6 @@ select:focus {
 /* ----------------------------------------------------------------------------
    15. SUB / DUB LANGUAGE TOGGLE & CUSTOM EMBED URL INPUT
    ---------------------------------------------------------------------------- */
-.player-lang-toggle {
-  display: flex;
-  gap: 4px;
-  margin-bottom: 12px;
-  background: var(--bg-card);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 3px;
-  width: fit-content;
-}
-
-.lang-btn {
-  padding: 6px 16px;
-  font-size: 13px;
-  font-weight: 500;
-  border-radius: 4px;
-  background: transparent;
-  color: var(--text-muted);
-  border: none;
-  cursor: pointer;
-  transition: all 0.15s ease;
-}
-
-.lang-btn:hover {
-  color: var(--text);
-}
-
-.lang-btn-active {
-  background: var(--accent);
-  color: var(--text);
-}
-
 .player-url-input {
   display: flex;
   gap: 8px;
@@ -2173,9 +2405,26 @@ select:focus {
     align-items: flex-start;
   }
 
-  .lang-btn {
-    padding: 5px 12px;
+  .ctl-groups {
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .player-skip-btn {
+    top: 10px;
+    right: 10px;
+    padding: 6px 12px;
     font-size: 12px;
+  }
+
+  .player-skip-btn.skip-outro {
+    bottom: 10px;
+  }
+
+  .resume-card,
+  .auto-next-card {
+    padding: 18px 16px;
+    margin: 0 12px;
   }
 }
 

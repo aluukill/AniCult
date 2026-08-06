@@ -27,7 +27,10 @@ AniCult is a fully client-side single-page application. No server, no build step
 - **Anime Discovery** — Hero slideshow of top airing anime, plus trending, popular, and recently updated rows from AniList
 - **Search & Filters** — Full-text search with 6 sort options (relevance, trending, popularity, score, newest, recently updated) and format filters (TV, Movie, OVA, ONA, Special)
 - **Anime Details** — Synopsis, genres, stats, episode grid with air dates, related anime
-- **Embed Streaming** — Instant playback via a themed Megavid embed (site-accent red, autoplay) with sub/dub toggle, auto-next on episode completion, and error handling with retry
+- **Embed Streaming** — Instant playback via the Megavid embed API with sub/dub toggle, auto-next on episode completion, and error handling with retry
+- **Multiple Sources** — Switch between the Megavid catalog and the AniWave backend at any time; if one fails, playback silently falls back to the other
+- **Dub Detection** — Per-episode, per-source probing so dubbed versions show up whenever they actually exist (no more sub-only locks)
+- **Smart Playback** — Skip Intro / Skip Outro buttons, resume prompt from your last position, and remembered preferences (audio, source, speed, quality, toggles)
 - **Continue Watching** — Smart CTA that only suggests aired episodes, with rewatch fallback when you're caught up
 - **Watchlist & History** — LocalStorage persistence with episode progress tracking
 - **Responsive UI** — Dark glassmorphism theme, hamburger nav, mobile-optimized hero and player
