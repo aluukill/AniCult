@@ -544,9 +544,9 @@ select:focus {
   }
 
   .nav-links a.active {
-    border-left-color: var(--accent);
-    background: rgba(230, 57, 70, 0.12);
-    color: var(--accent);
+    background: var(--accent);
+    color: var(--text);
+    border-left-color: transparent;
   }
 
   /* Mobile Search Bar Dropdown */
@@ -2287,7 +2287,7 @@ select:focus {
   .hero-slideshow {
     width: calc(100% + 24px);
     margin-left: -12px;
-    margin-top: 0;
+    margin-top: calc((var(--nav-height) + 16px) * -1);
     padding-top: 0;
     height: 420px;
   }
