@@ -1477,9 +1477,116 @@
     e.preventDefault();
     const q = searchInput.value.trim();
     if (q) {
+      closeSuggestions();
       location.hash = "/search?q=" + encodeURIComponent(q);
       searchInput.value = "";
     }
+  });
+
+  const suggestionsEl = document.getElementById("search-suggestions");
+  let activeSuggestion = -1;
+  let suggestionItems = [];
+  let debounceTimer = null;
+
+  function closeSuggestions() {
+    suggestionsEl.classList.remove("open");
+    suggestionsEl.innerHTML = "";
+    activeSuggestion = -1;
+    suggestionItems = [];
+  }
+
+  async function fetchSuggestions(query) {
+    if (!query || query.length < 2) {
+      closeSuggestions();
+      return;
+    }
+    const q = `query($search:String){Page(page:1,perPage:6){media(type:ANIME,search:$search,sort:SEARCH_MATCH){id title{romaji english}coverImage{large}format averageScore}}}`;
+    try {
+      const data = await gql(q, { search: query });
+      const media = data.Page.media;
+      if (!media.length) {
+        suggestionsEl.innerHTML = '<div class="search-suggestions-empty">No suggestions</div>';
+        suggestionsEl.classList.add("open");
+        suggestionItems = [];
+        return;
+      }
+      suggestionsEl.innerHTML = media
+        .map(
+          (a, i) => {
+            const t = title(a);
+            const fmt = a.format || "";
+            const score = a.averageScore ? a.averageScore + "%" : "";
+            const meta = [fmt, score].filter(Boolean).join(" \u00b7 ");
+            return `<a href="#/anime/${a.id}" class="search-suggestion" data-index="${i}">
+              <img src="${esc(a.coverImage?.large || "")}" alt="${esc(t)}">
+              <div class="search-suggestion-info">
+                <div class="search-suggestion-title">${esc(t)}</div>
+                ${meta ? `<div class="search-suggestion-meta">${esc(meta)}</div>` : ""}
+              </div>
+            </a>`;
+          },
+        )
+        .join("");
+      suggestionsEl.classList.add("open");
+      suggestionItems = suggestionsEl.querySelectorAll(".search-suggestion");
+      activeSuggestion = -1;
+    } catch {
+      closeSuggestions();
+    }
+  }
+
+  searchInput.addEventListener("input", () => {
+    clearTimeout(debounceTimer);
+    const q = searchInput.value.trim();
+    if (!q) {
+      closeSuggestions();
+      return;
+    }
+    debounceTimer = setTimeout(() => fetchSuggestions(q), 300);
+  });
+
+  searchInput.addEventListener("keydown", (e) => {
+    if (!suggestionsEl.classList.contains("open")) return;
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      activeSuggestion = Math.min(activeSuggestion + 1, suggestionItems.length - 1);
+      updateActive();
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      activeSuggestion = Math.max(activeSuggestion - 1, -1);
+      updateActive();
+    } else if (e.key === "Enter" && activeSuggestion >= 0) {
+      e.preventDefault();
+      const link = suggestionItems[activeSuggestion];
+      if (link) {
+        closeSuggestions();
+        searchInput.value = "";
+        location.hash = link.getAttribute("href");
+      }
+    } else if (e.key === "Escape") {
+      closeSuggestions();
+    }
+  });
+
+  function updateActive() {
+    suggestionItems.forEach((el, i) => {
+      el.classList.toggle("active", i === activeSuggestion);
+    });
+    if (activeSuggestion >= 0 && suggestionItems[activeSuggestion]) {
+      suggestionItems[activeSuggestion].scrollIntoView({ block: "nearest" });
+    }
+  }
+
+  suggestionsEl.addEventListener("click", (e) => {
+    const link = e.target.closest(".search-suggestion");
+    if (link) {
+      closeSuggestions();
+      searchInput.value = "";
+    }
+  });
+
+  document.addEventListener("click", (e) => {
+    if (!e.target.closest(".nav-search-wrap")) closeSuggestions();
   });
 
   const navToggle = document.getElementById("nav-toggle");

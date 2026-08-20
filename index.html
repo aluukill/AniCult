@@ -94,14 +94,18 @@
         <a href="#/history">History</a>
         <a href="#/about">About</a>
       </div>
-      <form class="nav-search" id="nav-search-form">
-        <input
-          type="text"
-          placeholder="Search anime..."
-          id="nav-search-input"
-        />
-        <button type="submit" id="nav-search-btn">Search</button>
-      </form>
+      <div class="nav-search-wrap">
+        <form class="nav-search" id="nav-search-form">
+          <input
+            type="text"
+            placeholder="Search anime..."
+            id="nav-search-input"
+            autocomplete="off"
+          />
+          <button type="submit" id="nav-search-btn">Search</button>
+        </form>
+        <div class="search-suggestions" id="search-suggestions"></div>
+      </div>
     </nav>
 
     <main class="main" id="app"></main>
