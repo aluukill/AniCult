@@ -164,7 +164,7 @@ select:focus {
   padding: 0 24px;
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-start;
   gap: 20px;
   position: relative;
 }
@@ -273,6 +273,7 @@ select:focus {
 .nav-search-section {
   display: flex;
   align-items: center;
+  margin-left: auto;
 }
 
 .nav-search-toggle {
