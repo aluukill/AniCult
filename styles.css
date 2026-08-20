@@ -31,6 +31,7 @@ html {
   font-size: 16px;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  scrollbar-gutter: stable;
 }
 
 body {
@@ -182,9 +183,9 @@ select:focus {
   transition: opacity var(--transition), transform var(--transition);
 }
 
-.nav-logo:hover {
+.nav-logo:hover,
+.nav-logo:active {
   opacity: 0.92;
-  transform: translateY(-1px);
 }
 
 .nav-logo-img {
@@ -672,22 +673,7 @@ select:focus {
   overflow: hidden;
   background: var(--bg-card);
   border: 1px solid var(--border);
-  transition:
-    transform var(--transition),
-    border-color var(--transition),
-    box-shadow var(--transition);
   text-decoration: none;
-}
-
-.card:hover {
-  background: var(--bg-hover);
-  border-color: var(--border-hover);
-  transform: translateY(-4px);
-  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.4);
-}
-
-.card:active {
-  transform: translateY(-2px);
 }
 
 .card-image {
@@ -701,11 +687,6 @@ select:focus {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.card:hover .card-image img {
-  transform: scale(1.08);
 }
 
 .card-score {
