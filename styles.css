@@ -139,86 +139,133 @@ select:focus {
   border-color: var(--accent);
 }
 
+/* ==========================================================================
+   NAVIGATION & HEADER
+   ========================================================================== */
+
 .nav {
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
   height: var(--nav-height);
-  background: rgba(8, 8, 12, 0.85);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
+  background: rgba(10, 10, 15, 0.88);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
   border-bottom: 1px solid var(--border);
-  z-index: 100;
-  display: flex;
-  align-items: center;
-  padding: 0 24px;
-  gap: 24px;
+  z-index: 200;
 }
 
-.nav-logo {
-  font-size: 20px;
-  font-weight: 700;
-  letter-spacing: -0.5px;
-  color: var(--accent);
-  flex-shrink: 0;
-  text-decoration: none;
+.nav-container {
+  max-width: var(--max-width);
+  height: 100%;
+  margin: 0 auto;
+  padding: 0 24px;
   display: flex;
   align-items: center;
-  gap: 8px;
+  justify-content: space-between;
+  gap: 20px;
+  position: relative;
+}
+
+/* Brand Logo */
+.nav-logo {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  text-decoration: none;
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -0.4px;
+  color: var(--accent);
+  flex-shrink: 0;
+  transition: opacity var(--transition), transform var(--transition);
+}
+
+.nav-logo:hover {
+  opacity: 0.92;
+  transform: translateY(-1px);
 }
 
 .nav-logo-img {
   width: 32px;
   height: 32px;
-  border-radius: 6px;
+  border-radius: 8px;
   object-fit: cover;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
 }
 
+.nav-logo-text {
+  font-weight: 700;
+  color: var(--accent);
+}
+
+/* Desktop Navigation Links */
 .nav-links {
   display: flex;
-  gap: 20px;
   align-items: center;
+  gap: 6px;
 }
 
 .nav-links a {
+  display: inline-flex;
+  align-items: center;
+  padding: 7px 14px;
   font-size: 14px;
-  color: var(--text-muted);
   font-weight: 500;
-  transition: color var(--transition);
+  color: var(--text-muted);
+  border-radius: 8px;
+  text-decoration: none;
+  transition:
+    color var(--transition),
+    background var(--transition),
+    transform var(--transition);
 }
 
 .nav-links a:hover {
   color: var(--text);
+  background: var(--bg-hover);
 }
 
+.nav-links a.active {
+  color: var(--accent);
+  background: rgba(230, 57, 70, 0.12);
+  font-weight: 600;
+}
+
+/* Toggle Buttons (Hidden by default on desktop) */
 .nav-toggle {
   display: none;
   flex-direction: column;
   justify-content: center;
+  align-items: center;
   gap: 5px;
-  width: 36px;
-  height: 36px;
+  width: 40px;
+  height: 40px;
   padding: 8px;
-  background: none;
-  border: none;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
   cursor: pointer;
-  border-radius: var(--radius);
+  border-radius: 10px;
+  flex-shrink: 0;
+  transition: background var(--transition), border-color var(--transition);
 }
 
-.nav-toggle:hover {
+.nav-toggle:hover,
+.nav-toggle.open {
   background: var(--bg-hover);
+  border-color: rgba(255, 255, 255, 0.16);
 }
 
 .nav-toggle span {
   display: block;
-  width: 100%;
+  width: 18px;
   height: 2px;
   background: var(--text);
-  border-radius: 1px;
+  border-radius: 2px;
   transition:
-    transform 0.2s ease,
-    opacity 0.2s ease;
+    transform 0.22s cubic-bezier(0.4, 0, 0.2, 1),
+    opacity 0.18s ease;
 }
 
 .nav-toggle.open span:nth-child(1) {
@@ -227,104 +274,133 @@ select:focus {
 
 .nav-toggle.open span:nth-child(2) {
   opacity: 0;
+  transform: scaleX(0);
 }
 
 .nav-toggle.open span:nth-child(3) {
   transform: translateY(-7px) rotate(-45deg);
 }
 
-@media (max-width: 960px) {
-  .nav-toggle {
-    display: flex;
-  }
+.nav-search-section {
+  display: flex;
+  align-items: center;
+}
 
-  .nav-links {
-    display: none;
-    position: absolute;
-    top: var(--nav-height);
-    left: 0;
-    right: 0;
-    background: rgba(18, 18, 26, 0.95);
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
-    border-bottom: 1px solid var(--border);
-    flex-direction: column;
-    padding: 6px 0;
-    gap: 0;
-    z-index: 150;
-    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5);
-  }
+.nav-search-toggle {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  padding: 8px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  cursor: pointer;
+  border-radius: 10px;
+  color: #e3e3e3;
+  flex-shrink: 0;
+  transition:
+    background var(--transition),
+    border-color var(--transition),
+    color var(--transition);
+}
 
-  .nav-links.open {
-    display: flex;
-  }
+.nav-search-toggle:hover,
+.nav-search-toggle.open {
+  background: var(--bg-hover);
+  border-color: rgba(255, 255, 255, 0.16);
+  color: var(--accent);
+}
 
-  .nav-links a {
-    padding: 13px 20px;
-    font-size: 14px;
-    width: 100%;
-    border-left: 3px solid transparent;
-    transition:
-      color var(--transition),
-      background var(--transition),
-      border-left-color var(--transition);
-  }
+.nav-search-toggle svg {
+  width: 22px;
+  height: 22px;
+  display: block;
+  fill: currentColor;
+}
 
-  .nav-links a:hover {
-    background: var(--bg-hover);
-    color: var(--text);
-  }
+/* Search Form (Desktop) */
+.nav-search-wrap {
+  position: relative;
+  width: 280px;
+  transition: width 0.25s ease;
+}
 
-  .nav-links a:active {
-    border-left-color: var(--accent);
-  }
+.nav-search-wrap:focus-within {
+  width: 320px;
 }
 
 .nav-search {
   display: flex;
   align-items: center;
-  gap: 8px;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 2px;
+  transition:
+    border-color var(--transition),
+    box-shadow var(--transition),
+    background var(--transition);
+}
+
+.nav-search:focus-within {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(230, 57, 70, 0.15);
 }
 
 .nav-search input {
-  width: 240px;
-  font-size: 14px;
+  flex: 1;
+  min-width: 0;
+  border: none;
+  background: transparent;
   padding: 6px 12px;
+  font-size: 13.5px;
+  color: var(--text);
+  outline: none;
+  box-shadow: none;
+}
+
+.nav-search input::placeholder {
+  color: var(--text-dim);
 }
 
 .nav-search button {
   background: var(--accent);
-  color: var(--text);
-  padding: 6px 16px;
-  border-radius: var(--radius);
-  font-size: 14px;
-  font-weight: 500;
-  transition: background var(--transition);
+  color: #fff;
+  border: none;
+  border-radius: calc(var(--radius) - 2px);
+  padding: 6px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background var(--transition), transform var(--transition);
 }
 
 .nav-search button:hover {
   background: var(--accent-hover);
 }
 
-.nav-search-wrap {
-  margin-left: auto;
-  position: relative;
+.nav-search button:active {
+  transform: scale(0.97);
 }
 
+/* Search Suggestions */
 .search-suggestions {
   display: none;
   position: absolute;
-  top: 100%;
+  top: calc(100% + 6px);
   right: 0;
-  width: 320px;
-  max-height: 400px;
+  width: 340px;
+  max-height: 420px;
   overflow-y: auto;
-  background: var(--bg-card);
+  background: rgba(16, 16, 24, 0.98);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
   border: 1px solid var(--border);
-  border-radius: var(--radius);
-  z-index: 1000;
-  margin-top: 4px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  border-radius: var(--radius-lg);
+  z-index: 300;
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.55);
 }
 
 .search-suggestions.open {
@@ -334,12 +410,17 @@ select:focus {
 .search-suggestion {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 8px 12px;
+  gap: 12px;
+  padding: 9px 12px;
   cursor: pointer;
   transition: background var(--transition);
   text-decoration: none;
   color: var(--text);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.search-suggestion:last-child {
+  border-bottom: none;
 }
 
 .search-suggestion:hover,
@@ -348,35 +429,197 @@ select:focus {
 }
 
 .search-suggestion img {
-  width: 36px;
-  height: 50px;
+  width: 38px;
+  height: 52px;
   object-fit: cover;
-  border-radius: 4px;
+  border-radius: 5px;
   flex-shrink: 0;
+  background: var(--bg-card);
 }
 
 .search-suggestion-info {
   overflow: hidden;
+  flex: 1;
 }
 
 .search-suggestion-title {
-  font-size: 13px;
+  font-size: 13.5px;
   font-weight: 500;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  color: var(--text);
 }
 
 .search-suggestion-meta {
-  font-size: 11px;
+  font-size: 11.5px;
   color: var(--text-muted);
+  margin-top: 2px;
 }
 
 .search-suggestions-empty {
-  padding: 12px;
+  padding: 16px;
   text-align: center;
   color: var(--text-muted);
-  font-size: 13px;
+  font-size: 13.5px;
+}
+
+/* Animations */
+@keyframes navSlideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ==========================================================================
+   MOBILE & RESPONSIVE NAVBAR (max-width: 860px)
+   ========================================================================== */
+
+@media (max-width: 860px) {
+  .nav-container {
+    padding: 0 14px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: relative;
+  }
+
+  /* Left: Hamburger */
+  .nav-toggle {
+    display: flex;
+    order: 1;
+  }
+
+  /* Center: AniCult Brand */
+  .nav-logo {
+    order: 2;
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    margin: 0;
+    gap: 8px;
+  }
+
+  .nav-logo-img {
+    width: 28px;
+    height: 28px;
+  }
+
+  .nav-logo-text {
+    font-size: 18px;
+  }
+
+  /* Right: Search Toggle */
+  .nav-search-section {
+    order: 3;
+  }
+
+  .nav-search-toggle {
+    display: flex;
+  }
+
+  /* Mobile Nav Links Dropdown */
+  .nav-links {
+    display: none;
+    position: fixed;
+    top: var(--nav-height);
+    left: 0;
+    right: 0;
+    background: rgba(10, 10, 16, 0.98);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border-bottom: 1px solid var(--border);
+    flex-direction: column;
+    padding: 10px 14px 16px;
+    gap: 4px;
+    z-index: 190;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6);
+  }
+
+  .nav-links.open {
+    display: flex;
+    animation: navSlideDown 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .nav-links a {
+    padding: 12px 16px;
+    font-size: 14.5px;
+    width: 100%;
+    border-radius: 8px;
+    border-left: 3px solid transparent;
+  }
+
+  .nav-links a:hover {
+    background: var(--bg-hover);
+    color: var(--text);
+  }
+
+  .nav-links a.active {
+    border-left-color: var(--accent);
+    background: rgba(230, 57, 70, 0.12);
+    color: var(--accent);
+  }
+
+  /* Mobile Search Bar Dropdown */
+  .nav-search-wrap {
+    display: none;
+    position: fixed;
+    top: var(--nav-height);
+    left: 0;
+    right: 0;
+    width: 100% !important;
+    margin: 0;
+    padding: 12px 14px;
+    background: rgba(10, 10, 16, 0.98);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border-bottom: 1px solid var(--border);
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6);
+    z-index: 185;
+  }
+
+  .nav-search-wrap.open {
+    display: block;
+    animation: navSlideDown 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .nav-search {
+    width: 100%;
+    display: flex;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: var(--radius);
+    padding: 3px;
+  }
+
+  .nav-search input {
+    flex: 1;
+    width: 100%;
+    padding: 8px 12px;
+    font-size: 14.5px;
+  }
+
+  .nav-search button {
+    padding: 8px 16px;
+    font-size: 14px;
+  }
+
+  /* Mobile Search Suggestions Dropdown */
+  .search-suggestions {
+    position: absolute;
+    top: calc(100% + 2px);
+    left: 14px;
+    right: 14px;
+    width: auto;
+    max-height: calc(70vh - var(--nav-height));
+    border-radius: var(--radius);
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.75);
+  }
 }
 
 .main {
@@ -2244,11 +2487,6 @@ select:focus {
 @media (max-width: 768px) {
   .nav {
     padding: 0 12px;
-    gap: 12px;
-  }
-
-  .nav-search input {
-    width: 140px;
   }
 
   .main {
@@ -2289,22 +2527,6 @@ select:focus {
 }
 
 @media (max-width: 480px) {
-  .nav-search {
-    margin-left: auto;
-    flex: 1;
-    min-width: 0;
-  }
-
-  .nav-search input {
-    flex: 1;
-    width: 100%;
-    min-width: 0;
-  }
-
-  .nav-search button {
-    flex-shrink: 0;
-  }
-
   .grid {
     grid-template-columns: repeat(3, 1fr);
     gap: 8px;

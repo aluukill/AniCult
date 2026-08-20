@@ -427,6 +427,7 @@
       app.innerHTML = `<div class="empty"><div class="empty-title">Something went wrong</div><div class="empty-text">${esc(err.message)}</div><a href="#/" class="btn btn-primary">Go Home</a></div>`;
     }
 
+    updateActiveNav();
     window.scrollTo(0, 0);
   }
 
@@ -1478,6 +1479,7 @@
     const q = searchInput.value.trim();
     if (q) {
       closeSuggestions();
+      closeSearch();
       location.hash = "/search?q=" + encodeURIComponent(q);
       searchInput.value = "";
     }
@@ -1560,11 +1562,13 @@
       const link = suggestionItems[activeSuggestion];
       if (link) {
         closeSuggestions();
+        closeSearch();
         searchInput.value = "";
         location.hash = link.getAttribute("href");
       }
     } else if (e.key === "Escape") {
       closeSuggestions();
+      closeSearch();
     }
   });
 
@@ -1581,36 +1585,101 @@
     const link = e.target.closest(".search-suggestion");
     if (link) {
       closeSuggestions();
+      closeSearch();
       searchInput.value = "";
     }
   });
 
-  document.addEventListener("click", (e) => {
-    if (!e.target.closest(".nav-search-wrap")) closeSuggestions();
-  });
-
   const navToggle = document.getElementById("nav-toggle");
   const navLinks = document.getElementById("nav-links");
+  const navSearchToggle = document.getElementById("nav-search-toggle");
+  const navSearchWrap = document.getElementById("nav-search-wrap");
+
   function closeMenu() {
     navLinks.classList.remove("open");
     navToggle.classList.remove("open");
     navToggle.setAttribute("aria-expanded", "false");
   }
+
+  function closeSearch() {
+    if (navSearchWrap) navSearchWrap.classList.remove("open");
+    if (navSearchToggle) {
+      navSearchToggle.classList.remove("open");
+      navSearchToggle.setAttribute("aria-expanded", "false");
+    }
+    closeSuggestions();
+  }
+
+  function openSearch() {
+    closeMenu();
+    if (navSearchWrap) navSearchWrap.classList.add("open");
+    if (navSearchToggle) {
+      navSearchToggle.classList.add("open");
+      navSearchToggle.setAttribute("aria-expanded", "true");
+    }
+    if (searchInput) {
+      setTimeout(() => searchInput.focus(), 50);
+    }
+  }
+
+  if (navSearchToggle) {
+    navSearchToggle.addEventListener("click", () => {
+      const isOpen = navSearchWrap && navSearchWrap.classList.contains("open");
+      if (isOpen) {
+        closeSearch();
+      } else {
+        openSearch();
+      }
+    });
+  }
+
   navToggle.addEventListener("click", () => {
+    closeSearch();
     const open = navLinks.classList.toggle("open");
     navToggle.classList.toggle("open", open);
     navToggle.setAttribute("aria-expanded", String(open));
   });
+
   navLinks.addEventListener("click", (e) => {
     if (e.target.closest("a")) closeMenu();
   });
+
   document.addEventListener("click", (e) => {
-    if (!e.target.closest(".nav") && navLinks.classList.contains("open"))
+    if (!e.target.closest(".nav-search-wrap") && !e.target.closest("#nav-search-toggle")) {
+      if (navSearchWrap && navSearchWrap.classList.contains("open")) {
+        closeSearch();
+      } else {
+        closeSuggestions();
+      }
+    }
+    if (!e.target.closest(".nav") && navLinks.classList.contains("open")) {
       closeMenu();
+    }
   });
+
+  function updateActiveNav() {
+    const currentHash = location.hash || "#/";
+    if (!navLinks) return;
+    navLinks.querySelectorAll("a").forEach((link) => {
+      const href = link.getAttribute("href");
+      if (href === currentHash) {
+        link.classList.add("active");
+      } else if (href !== "#/" && currentHash.startsWith(href)) {
+        link.classList.add("active");
+      } else if (
+        href === "#/" &&
+        (currentHash === "#/" || currentHash === "#" || currentHash === "")
+      ) {
+        link.classList.add("active");
+      } else {
+        link.classList.remove("active");
+      }
+    });
+  }
 
   window.addEventListener("hashchange", () => {
     if (navLinks.classList.contains("open")) closeMenu();
+    if (navSearchWrap && navSearchWrap.classList.contains("open")) closeSearch();
     route();
   });
   route();
