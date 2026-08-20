@@ -184,7 +184,7 @@ select:focus {
 }
 
 .nav-logo-img {
-  height: 44px;
+  height: 38px;
   width: auto;
   object-fit: contain;
 }
@@ -470,7 +470,7 @@ select:focus {
   }
 
   .nav-logo-img {
-    height: 36px;
+    height: 30px;
   }
 
   /* Right: Search Toggle */
