@@ -225,49 +225,25 @@ select:focus {
 /* Toggle Buttons (Hidden by default on desktop) */
 .nav-toggle {
   display: none;
-  flex-direction: column;
-  justify-content: center;
   align-items: center;
-  gap: 5px;
+  justify-content: center;
   width: 40px;
   height: 40px;
   padding: 8px;
   background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.08);
   cursor: pointer;
   border-radius: 10px;
   flex-shrink: 0;
-  transition: background var(--transition), border-color var(--transition);
+  transition: background var(--transition);
 }
 
 .nav-toggle:hover,
 .nav-toggle.open {
   background: var(--bg-hover);
-  border-color: rgba(255, 255, 255, 0.16);
 }
 
-.nav-toggle span {
+.nav-toggle svg {
   display: block;
-  width: 18px;
-  height: 2px;
-  background: var(--text);
-  border-radius: 2px;
-  transition:
-    transform 0.22s cubic-bezier(0.4, 0, 0.2, 1),
-    opacity 0.18s ease;
-}
-
-.nav-toggle.open span:nth-child(1) {
-  transform: translateY(7px) rotate(45deg);
-}
-
-.nav-toggle.open span:nth-child(2) {
-  opacity: 0;
-  transform: scaleX(0);
-}
-
-.nav-toggle.open span:nth-child(3) {
-  transform: translateY(-7px) rotate(-45deg);
 }
 
 .nav-search-section {
@@ -299,7 +275,6 @@ select:focus {
 .nav-search-toggle.open {
   background: var(--bg-hover);
   border-color: rgba(255, 255, 255, 0.16);
-  color: var(--accent);
 }
 
 .nav-search-toggle svg {
