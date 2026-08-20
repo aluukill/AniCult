@@ -173,12 +173,7 @@ select:focus {
 .nav-logo {
   display: inline-flex;
   align-items: center;
-  gap: 10px;
   text-decoration: none;
-  font-size: 20px;
-  font-weight: 700;
-  letter-spacing: -0.4px;
-  color: var(--accent);
   flex-shrink: 0;
   transition: opacity var(--transition), transform var(--transition);
 }
@@ -189,16 +184,9 @@ select:focus {
 }
 
 .nav-logo-img {
-  width: 32px;
-  height: 32px;
-  border-radius: 8px;
-  object-fit: cover;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
-}
-
-.nav-logo-text {
-  font-weight: 700;
-  color: var(--accent);
+  height: 44px;
+  width: auto;
+  object-fit: contain;
 }
 
 /* Desktop Navigation Links */
@@ -503,16 +491,10 @@ select:focus {
     left: 50%;
     transform: translateX(-50%);
     margin: 0;
-    gap: 8px;
   }
 
   .nav-logo-img {
-    width: 28px;
-    height: 28px;
-  }
-
-  .nav-logo-text {
-    font-size: 18px;
+    height: 36px;
   }
 
   /* Right: Search Toggle */
