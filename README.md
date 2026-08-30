@@ -20,14 +20,14 @@
 AniCult is a fully client-side single-page application. No server, no build step, no runtime dependencies. Open `index.html` and it works.
 
 - **Anime browsing** uses the AniList GraphQL API (CORS-enabled)
-- **Video playback** uses Megavid embed player (AniList ID based, no scraping)
+- **Video playback** uses Megavid / AniXo / MegaPlay embed players (AniList & MAL ID based, no scraping; MegaPlay also supports Anikoto catalog IDs via `https://anikotoapi.site` and `https://megaplay.buzz`)
 
 ## Features
 
 - **Anime Discovery** — Hero slideshow of top airing anime, plus trending, popular, and recently updated rows from AniList
 - **Search & Filters** — Full-text search with 6 sort options (relevance, trending, popularity, score, newest, recently updated) and format filters (TV, Movie, OVA, ONA, Special)
 - **Anime Details** — Synopsis, genres, stats, episode grid with air dates, related anime
-- **Embed Streaming** — Instant playback via a themed Megavid embed (site-accent red, autoplay) with sub/dub toggle, auto-next on episode completion, and error handling with retry
+- **Embed Streaming** — Instant playback via themed embeds (Megavid / AniXo / MegaPlay with site-accent red, autoplay) with sub/dub toggle, provider switcher, auto-next on episode completion, error handling with retry, and MegaPlay mapping-request support
 - **Continue Watching** — Smart CTA that only suggests aired episodes, with rewatch fallback when you're caught up
 - **Watchlist & History** — LocalStorage persistence with episode progress tracking
 - **Responsive UI** — Dark glassmorphism theme, hamburger nav, mobile-optimized hero and player
@@ -61,8 +61,8 @@ Or deploy your own: fork the repo and connect to Vercel — zero config.
 
 1. Browse anime on the home page (hero slideshow, trending, popular, recent)
 2. Click into a detail page — pick the next aired episode from the grid
-3. Megavid embed loads instantly using the AniList ID (MAL ID fallback for older titles)
-4. Video plays in an iframe with sub/dub toggle and auto-advances to the next episode when finished
+3. Embed loads instantly: Megavid/AniXo/MegaPlay using AniList ID (MAL ID fallback; MegaPlay also supports Anikoto `episode_embed_id` via `/stream/s-2/{id}/{lang}` and MAL/AniList via `/stream/mal|ani/{id}/{ep}/{lang}`)
+4. Video plays in an iframe with sub/dub toggle, provider switcher, and auto-advances to the next episode when finished (MegaPlay via `megacloud` channel + `watching-log` events, Megavid via `kisskh`, AniXo via `aniko:`)
 5. History, progress, and watchlist save to localStorage
 
 ## License

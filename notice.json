@@ -1,12 +1,11 @@
 {
-  "version": "3",
+  "version": "4",
   "title": "What's new in AniCult ✨",
   "items": [
-    "New logo! AniCult now has a fresh icon displayed in the header and as the site favicon",
-    "Added AniXo as a second video provider — switch between Megavid and AniXo with a one-tap toggle in the player",
-    "Sub and Dub are now always available, so you can switch audio instantly on any episode",
-    "Megavid embeds stay sandboxed so they can never redirect you away from AniCult",
-    "Cleaned up the codebase and removed unused features"
+    "New video source added — MegaPlay gives you more shows and better reliability",
+    "Easily switch between video sources in the player if one doesn't work",
+    "Episodes now play the next one automatically when finished",
+    "If a show doesn't load, you can let us know with one tap and we'll fix it"
   ],
   "buttonLabel": "Got it"
 }

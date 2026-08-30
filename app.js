@@ -42,6 +42,9 @@
 
   let navToken = 0;
 
+  const MEGAPLAY_BASE = "https://megaplay.buzz";
+  const ANIKOTO_API_BASE = "https://anikotoapi.site";
+
   const EMBED_PROVIDERS = [
     {
       id: "megavid",
@@ -59,16 +62,89 @@
         return `https://anixo.buzz/embed/ani/${anilistId}/${episode}/${lang}?color=%23e63946`;
       },
     },
+    {
+      id: "megaplay",
+      name: "MegaPlay",
+      makeUrl(episode, anilistId, lang = "sub", malId = null) {
+        const safeLang = lang === "dub" ? "dub" : "sub";
+        if (malId) {
+          return `${MEGAPLAY_BASE}/stream/mal/${malId}/${episode}/${safeLang}`;
+        }
+        return `${MEGAPLAY_BASE}/stream/ani/${anilistId}/${episode}/${safeLang}`;
+      },
+      makeUrlFromEpisodeId(episodeEmbedId, lang = "sub") {
+        const safeLang = lang === "dub" ? "dub" : "sub";
+        return `${MEGAPLAY_BASE}/stream/s-2/${episodeEmbedId}/${safeLang}`;
+      },
+      anikoto: {
+        base: ANIKOTO_API_BASE,
+        recentUrl(page = 1, perPage = 20) {
+          return `${ANIKOTO_API_BASE}/recent-anime?page=${page}&per_page=${perPage}`;
+        },
+        seriesUrl(id) {
+          return `${ANIKOTO_API_BASE}/series/${id}`;
+        },
+      },
+    },
   ];
 
   function isAnixoUrl(url) {
     return /^https:\/\/anixo\.buzz\//.test(url);
   }
 
+  function isMegaPlayUrl(url) {
+    return /^https:\/\/megaplay\.buzz\//.test(url);
+  }
+
+  async function requestMegaPlayMapping({ idType, externalId, episode, message }) {
+    const payload = {
+      id_type: idType,
+      external_id: Number(externalId),
+      message: String(message || ""),
+    };
+    if (episode != null && String(episode).trim() !== "") {
+      payload.episode = String(episode);
+    }
+    const res = await fetch(`${MEGAPLAY_BASE}/api/mapping-request`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) {
+      const text = await res.text().catch(() => "");
+      throw new Error(text || `Mapping request failed: ${res.status}`);
+    }
+    const data = await res.json().catch(() => ({}));
+    if (data && data.ok === false) throw new Error(data.message || "Mapping request failed");
+    return data;
+  }
+
+  async function fetchAnikotoSeries(id) {
+    const res = await fetch(`${ANIKOTO_API_BASE}/series/${id}`);
+    if (!res.ok) throw new Error(`Anikoto API error: ${res.status}`);
+    return res.json();
+  }
+
+  async function fetchAnikotoRecent(page = 1, perPage = 20) {
+    const res = await fetch(
+      `${ANIKOTO_API_BASE}/recent-anime?page=${page}&per_page=${perPage}`,
+    );
+    if (!res.ok) throw new Error(`Anikoto API error: ${res.status}`);
+    return res.json();
+  }
+
   function classifyPlayerMessage(d) {
     if (!d || typeof d !== "object") return null;
-    if (d.type === "watching-log")
+    if (d.channel === "megacloud") {
+      if (d.event === "complete") return { provider: "megaplay", state: "ended" };
+      if (d.event === "time") return { provider: "megaplay", state: "playing" };
+      if (d.event === "error")
+        return { provider: "megaplay", state: "error", message: d.message };
+      return { provider: "megaplay", state: "ignored" };
+    }
+    if (d.type === "watching-log") {
       return { provider: "megavid", state: "playing" };
+    }
     if (d.channel === "kisskh") {
       if (d.event === "complete") return { provider: "megavid", state: "ended" };
       if (d.event === "time") return { provider: "megavid", state: "playing" };
@@ -102,6 +178,10 @@
       return { provider: "anixo", state: "ignored" };
     }
     return null;
+  }
+
+  function isTrustedMegaPlayOrigin(origin) {
+    return origin === "https://megaplay.buzz";
   }
 
   async function gql(query, variables = {}) {
@@ -1056,9 +1136,10 @@
       } else if (!canWatch) {
         html += unavailableHtml();
       } else if (embedUrl) {
-        const sandboxAttr = isAnixoUrl(embedUrl)
-          ? ""
-          : ' sandbox="allow-scripts allow-same-origin"';
+        const sandboxAttr =
+          isAnixoUrl(embedUrl) || isMegaPlayUrl(embedUrl)
+            ? ""
+            : ' sandbox="allow-scripts allow-same-origin"';
         html += `<iframe src="${esc(embedUrl)}" loading="lazy" allow="autoplay; fullscreen"${sandboxAttr}></iframe>`;
       } else {
         html += unavailableHtml();
@@ -1100,6 +1181,16 @@
 
       if (error) {
         html += `<div class="embed-error">${esc(error)} <button class="btn btn-outline btn-sm" id="retry-btn">Retry</button></div>`;
+        if (currentProvider === "megaplay") {
+          const malId = anime.idMal || null;
+          const idType = malId ? "MAL" : "AniList";
+          const extId = malId || anime.id;
+          html += `<div class="mapping-request"><div class="mapping-request-title">Missing mapping? Request it</div><div class="mapping-request-text">MegaPlay hosts the full HiAnime library but ${esc(idType)} mapping for "${esc(t)}" may be missing. Submit a request to add it.</div><div class="mapping-request-form"><input type="text" id="mapping-message" placeholder="What's wrong? Include title, language, etc." value="Please add mapping for ${esc(t)} — ${esc(idType)} ${esc(String(extId))} episode ${episode} (${esc(currentLang)})" style="flex:1;min-width:180px"><button class="btn btn-primary btn-sm" id="request-mapping-btn">Send Request</button><span id="mapping-status" class="mapping-status"></span></div></div>`;
+        }
+      }
+
+      if (currentProvider === "megaplay" && canWatch && !error) {
+        html += `<div class="mapping-note">Note: MegaPlay MAL/AniList coverage isn't 100% — if this title doesn't load, use the mapping request on error or switch provider. Catalog ID (s-2) is most reliable.</div>`;
       }
 
       if (!loading && !embedUrl && canWatch) {
@@ -1159,6 +1250,37 @@
 
       const retryBtn = region.querySelector("#retry-btn");
       if (retryBtn) retryBtn.addEventListener("click", discoverSources);
+
+      const mappingBtn = region.querySelector("#request-mapping-btn");
+      if (mappingBtn) {
+        mappingBtn.addEventListener("click", async () => {
+          const msgInput = region.querySelector("#mapping-message");
+          const statusEl = region.querySelector("#mapping-status");
+          const message = msgInput ? msgInput.value.trim() : "";
+          if (!message) {
+            if (statusEl) statusEl.textContent = "Please enter a message.";
+            return;
+          }
+          const malId = anime.idMal || null;
+          const idType = malId ? "MAL" : "AniList";
+          const externalId = malId || anime.id;
+          mappingBtn.disabled = true;
+          if (statusEl) statusEl.textContent = "Sending...";
+          try {
+            await requestMegaPlayMapping({
+              idType,
+              externalId,
+              episode: String(episode),
+              message,
+            });
+            if (statusEl) statusEl.textContent = "Thanks — we received your request.";
+            mappingBtn.textContent = "Sent";
+          } catch (err) {
+            if (statusEl) statusEl.textContent = err.message || "Something went wrong. Please try again.";
+            mappingBtn.disabled = false;
+          }
+        });
+      }
     }
 
     function onPlayerMessage(e) {
@@ -1166,6 +1288,14 @@
       if (!d) return;
       const iframe = app.querySelector("iframe");
       if (!iframe || e.source !== iframe.contentWindow) return;
+      if (d.channel === "megacloud" && e.origin && !isTrustedMegaPlayOrigin(e.origin)) {
+        return;
+      }
+      if (d.type === "watching-log") {
+        if (currentProvider === "megavid" || currentProvider === "megaplay") {
+          return;
+        }
+      }
       const cls = classifyPlayerMessage(d);
       if (!cls || cls.provider !== currentProvider) return;
       if (cls.state === "ended") {
@@ -1357,7 +1487,7 @@
     html += `<ul class="about-list">`;
     html += `<li>Trending, popular, and recently updated anime refreshed directly from AniList</li>`;
     html += `<li>Search with format filters (TV, Movie, OVA, ONA, Special) and 6 sort options</li>`;
-    html += `<li>Sub/Dub player with autoplay, auto-next, and error retry support</li>`;
+    html += `<li>Sub/Dub player with autoplay, auto-next, and error retry support — choose Megavid, AniXo, or MegaPlay (Anikoto + MAL/AniList at megaplay.buzz)</li>`;
     html += `<li>Watchlist, watch history, and episode progress saved locally in your browser</li>`;
     html += `<li>Fully responsive design built for both desktop and mobile devices</li>`;
     html += `</ul>`;
