@@ -527,18 +527,122 @@
     window.scrollTo(0, 0);
   }
 
-  async function renderHome() {
-    const [topAiring, trending, recent, popular] = await Promise.all([
-      getTopAiring(),
-      getTrending(1, 20),
-      getRecentlyUpdated(1, 20),
-      getPopular(1, 20),
-    ]);
+async function renderHome() {
+    const myToken = navToken;
+    function isStale() {
+      return myToken !== navToken;
+    }
 
-    let html = "";
+    function skeletonCards(count) {
+      return Array.from(
+        { length: count },
+        () => `
+        <div class="card skeleton-card">
+          <div class="card-image skeleton"></div>
+          <div class="card-body">
+            <div class="skeleton" style="height:13px"></div>
+            <div class="skeleton" style="height:13px;width:60%"></div>
+          </div>
+        </div>
+      `,
+      ).join("");
+    }
 
-    if (topAiring.length > 0) {
-      html += `<div class="hero-slideshow" id="hero-slideshow">`;
+    let heroTimer = null;
+    let heroCount = 0;
+    let heroIndex = 0;
+    let heroSlides = null;
+    let heroDots = null;
+    let heroEl = null;
+    let heroBgs = [];
+    let currentTopAiring = [];
+    let onHeroVisibility = null;
+    let popularObserver = null;
+    let popPage = 2;
+    let popHasNext = true;
+    let popLoading = false;
+
+    function ensureHeroMedia(slide, i) {
+      const bg = slide.querySelector(".hero-slide-bg");
+      if (bg && !bg.style.backgroundImage) {
+        bg.style.backgroundImage = `url('${cssUrl(heroBgs[i])}')`;
+      }
+      const coverImg = slide.querySelector(".hero-slide-cover img");
+      if (coverImg && !coverImg.getAttribute("src")) {
+        coverImg.src = cover(currentTopAiring[i]);
+      }
+    }
+
+    function showHeroSlide(n) {
+      if (!heroSlides || !heroDots) return;
+      heroIndex = (n + heroCount) % heroCount;
+      heroSlides.forEach((s, i) => {
+        s.classList.toggle("active", i === heroIndex);
+        if (i === heroIndex) ensureHeroMedia(s, i);
+      });
+      heroDots.forEach((d, i) => d.classList.toggle("active", i === heroIndex));
+    }
+
+    function stopHero() {
+      if (heroTimer) {
+        clearInterval(heroTimer);
+        heroTimer = null;
+      }
+    }
+
+    function startHero() {
+      stopHero();
+      if (document.hidden) return;
+      if (!heroEl || heroCount <= 1) return;
+      heroTimer = setInterval(() => showHeroSlide(heroIndex + 1), 3000);
+    }
+
+    currentPage.destroy = () => {
+      stopHero();
+      if (onHeroVisibility) document.removeEventListener("visibilitychange", onHeroVisibility);
+      if (popularObserver) popularObserver.disconnect();
+    };
+
+    app.innerHTML = `
+      <div id="hero-skeleton" class="skeleton-hero">
+        <div class="hero-slide active" style="opacity:1;visibility:visible">
+          <div class="hero-slide-bg skeleton" style="opacity:0.2"></div>
+          <div class="hero-slide-overlay"></div>
+          <div class="hero-slide-content">
+            <div class="hero-rank skeleton" style="width:80px;height:80px;border-radius:12px"></div>
+            <div class="hero-slide-main">
+              <div class="hero-slide-cover skeleton" style="width:130px;height:173px"></div>
+              <div class="hero-slide-info" style="flex:1;min-width:0">
+                <div class="skeleton" style="width:90px;height:12px;margin-bottom:12px;border-radius:999px"></div>
+                <div class="skeleton" style="width:75%;height:28px;margin-bottom:12px"></div>
+                <div class="skeleton" style="width:100%;height:14px;margin-bottom:8px"></div>
+                <div class="skeleton" style="width:85%;height:14px;margin-bottom:16px"></div>
+                <div style="display:flex;gap:10px">
+                  <div class="skeleton" style="width:110px;height:36px;border-radius:var(--radius)"></div>
+                  <div class="skeleton" style="width:110px;height:36px;border-radius:var(--radius)"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <section class="section" id="trending-section">
+        <div class="section-header"><h2 class="section-title">Trending Now</h2><a href="/search?sort=TRENDING_DESC" class="section-link">View All</a></div>
+        <div class="scroll-row" id="trending-row">${skeletonCards(10)}</div>
+      </section>
+      <section class="section" id="recent-section">
+        <div class="section-header"><h2 class="section-title">Recently Updated</h2><a href="/search?sort=UPDATED_AT_DESC" class="section-link">View All</a></div>
+        <div class="scroll-row" id="recent-row">${skeletonCards(10)}</div>
+      </section>
+      <section class="section" id="popular-section">
+        <div class="section-header"><h2 class="section-title">All Time Popular</h2><a href="/search?sort=POPULARITY_DESC" class="section-link">View All</a></div>
+        <div id="popular-grid" class="grid">${skeletonCards(8)}</div>
+        <div id="popular-loader" style="text-align:center;padding:2rem;color:var(--text-muted)"></div>
+      </section>
+    `;
+
+    function buildHeroHtml(topAiring) {
+      let html = `<div class="hero-slideshow" id="hero-slideshow">`;
       topAiring.forEach((anime, i) => {
         const t = title(anime);
         const bg = anime.bannerImage || cover(anime);
@@ -591,173 +695,212 @@
         )
         .join("")}</div>`;
       html += `</div>`;
+      return html;
     }
 
-    html += `<section class="section"><div class="section-header"><h2 class="section-title">Trending Now</h2><a href="/search?sort=TRENDING_DESC" class="section-link">View All</a></div><div class="scroll-row">${trending.media.map(cardHtml).join("")}</div></section>`;
+    function initHero(topAiring) {
+      if (isStale()) return;
+      heroCount = topAiring.length;
+      currentTopAiring = topAiring;
+      heroBgs = topAiring.map((a) => a.bannerImage || cover(a));
+      heroEl = document.getElementById("hero-slideshow");
+      heroSlides = document.querySelectorAll(".hero-slide");
+      heroDots = document.querySelectorAll(".hero-dot");
+      heroIndex = 0;
 
-    html += `<section class="section"><div class="section-header"><h2 class="section-title">Recently Updated</h2><a href="/search?sort=UPDATED_AT_DESC" class="section-link">View All</a></div><div class="scroll-row">${recent.media.map(cardHtml).join("")}</div></section>`;
-
-    html += `<section class="section"><div class="section-header"><h2 class="section-title">All Time Popular</h2><a href="/search?sort=POPULARITY_DESC" class="section-link">View All</a></div><div id="popular-grid" class="grid">${popular.media.map(cardHtml).join("")}</div><div id="popular-loader" style="text-align:center;padding:2rem;color:var(--text-muted)"></div></section>`;
-
-    app.innerHTML = html;
-
-    let heroIndex = 0;
-    let heroTimer = null;
-    const heroCount = topAiring.length;
-    const slides = document.querySelectorAll(".hero-slide");
-    const dots = document.querySelectorAll(".hero-dot");
-    const slideshowEl = document.getElementById("hero-slideshow");
-    const heroBgs = topAiring.map((a) => a.bannerImage || cover(a));
-
-    function ensureSlideMedia(slide, i) {
-      const bg = slide.querySelector(".hero-slide-bg");
-      if (bg && !bg.style.backgroundImage) {
-        bg.style.backgroundImage = `url('${cssUrl(heroBgs[i])}')`;
-      }
-      const coverImg = slide.querySelector(".hero-slide-cover img");
-      if (coverImg && !coverImg.getAttribute("src")) {
-        coverImg.src = cover(topAiring[i]);
-      }
-    }
-
-    function showSlide(n) {
-      heroIndex = (n + heroCount) % heroCount;
-      slides.forEach((s, i) => {
-        s.classList.toggle("active", i === heroIndex);
-        if (i === heroIndex) ensureSlideMedia(s, i);
-      });
-      dots.forEach((d, i) => d.classList.toggle("active", i === heroIndex));
-    }
-
-    function stopHero() {
-      if (heroTimer) {
-        clearInterval(heroTimer);
-        heroTimer = null;
-      }
-    }
-
-    function startHero() {
-      stopHero();
-      if (document.hidden) return;
-      heroTimer = setInterval(() => showSlide(heroIndex + 1), 3000);
-    }
-
-    if (slideshowEl && heroCount > 1) {
-      const prevBtn = document.getElementById("hero-prev");
-      const nextBtn = document.getElementById("hero-next");
-      if (prevBtn)
-        prevBtn.addEventListener("click", () => {
-          showSlide(heroIndex - 1);
-          startHero();
-        });
-      if (nextBtn)
-        nextBtn.addEventListener("click", () => {
-          showSlide(heroIndex + 1);
-          startHero();
-        });
-      dots.forEach((d) =>
-        d.addEventListener("click", () => {
-          showSlide(parseInt(d.dataset.dot));
-          startHero();
-        }),
-      );
-      slideshowEl.addEventListener("mouseenter", stopHero);
-      slideshowEl.addEventListener("mouseleave", startHero);
-
-      let touchStartX = null;
-      slideshowEl.addEventListener(
-        "touchstart",
-        (e) => {
-          touchStartX = e.changedTouches[0].clientX;
-          stopHero();
-        },
-        { passive: true },
-      );
-      slideshowEl.addEventListener(
-        "touchend",
-        (e) => {
-          if (touchStartX === null) {
+      if (heroEl && heroCount > 1) {
+        const prevBtn = document.getElementById("hero-prev");
+        const nextBtn = document.getElementById("hero-next");
+        if (prevBtn)
+          prevBtn.addEventListener("click", () => {
+            showHeroSlide(heroIndex - 1);
             startHero();
-            return;
-          }
-          const dx = e.changedTouches[0].clientX - touchStartX;
-          touchStartX = null;
-          if (Math.abs(dx) > 40) {
-            showSlide(heroIndex + (dx < 0 ? 1 : -1));
-          }
-          startHero();
-        },
-        { passive: true },
-      );
-      startHero();
-      // Safety: ensure autoplay is running even if a synchronous mouseenter cleared it on load
-      setTimeout(() => {
-        if (!heroTimer && !document.hidden && slideshowEl && heroCount > 1) startHero();
-      }, 100);
-    }
+          });
+        if (nextBtn)
+          nextBtn.addEventListener("click", () => {
+            showHeroSlide(heroIndex + 1);
+            startHero();
+          });
+        heroDots.forEach((d) =>
+          d.addEventListener("click", () => {
+            showHeroSlide(parseInt(d.dataset.dot));
+            startHero();
+          }),
+        );
+        // Hover pause disabled to ensure autoplay works without interaction; re-enable with delay if needed
+        // heroEl.addEventListener("mouseenter", stopHero);
+        // heroEl.addEventListener("mouseleave", startHero);
 
-    let popPage = 2;
-    let popHasNext = popular.pageInfo.hasNextPage;
-    let popLoading = false;
-    const loader = document.getElementById("popular-loader");
-    const grid = document.getElementById("popular-grid");
-
-    async function loadMorePopular() {
-      if (popLoading || !popHasNext) return;
-      popLoading = true;
-      loader.textContent = "Loading more...";
-      try {
-        const data = await getPopular(popPage, 20);
-        if (data) {
-          grid.insertAdjacentHTML(
-            "beforeend",
-            data.media.map(cardHtml).join(""),
-          );
-          popHasNext = data.pageInfo.hasNextPage;
-          popPage++;
-        }
-      } catch (e) {
-        console.error(e);
+        let touchStartX = null;
+        heroEl.addEventListener(
+          "touchstart",
+          (e) => {
+            touchStartX = e.changedTouches[0].clientX;
+            stopHero();
+          },
+          { passive: true },
+        );
+        heroEl.addEventListener(
+          "touchend",
+          (e) => {
+            if (touchStartX === null) {
+              startHero();
+              return;
+            }
+            const dx = e.changedTouches[0].clientX - touchStartX;
+            touchStartX = null;
+            if (Math.abs(dx) > 40) {
+              showHeroSlide(heroIndex + (dx < 0 ? 1 : -1));
+            }
+            startHero();
+          },
+          { passive: true },
+        );
+        startHero();
+        setTimeout(() => {
+          if (!heroTimer && !document.hidden && heroEl && heroCount > 1) startHero();
+        }, 100);
       }
-      popLoading = false;
-      loader.textContent = "";
+
+      if (onHeroVisibility) document.removeEventListener("visibilitychange", onHeroVisibility);
+      onHeroVisibility = () => {
+        if (document.hidden) stopHero();
+        else if (heroEl && heroCount > 1) startHero();
+      };
+      document.addEventListener("visibilitychange", onHeroVisibility);
     }
 
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries[0].isIntersecting) loadMorePopular();
-      },
-      { rootMargin: "200px" },
-    );
+    getTopAiring()
+      .then((topAiring) => {
+        if (isStale()) return;
+        const skel = document.getElementById("hero-skeleton");
+        if (!skel) return;
+        if (!topAiring || topAiring.length === 0) {
+          skel.innerHTML = `<div class="empty"><div class="empty-title">No airing anime</div></div>`;
+          return;
+        }
+        skel.outerHTML = buildHeroHtml(topAiring);
+        initHero(topAiring);
+      })
+      .catch((e) => {
+        console.error(e);
+        if (isStale()) return;
+        const skel = document.getElementById("hero-skeleton");
+        if (skel) skel.innerHTML = `<div class="empty"><div class="empty-text">Failed to load hero</div></div>`;
+      });
 
-    if (loader) observer.observe(loader);
+    getTrending(1, 20)
+      .then((trending) => {
+        if (isStale()) return;
+        const row = document.getElementById("trending-row");
+        if (!row) return;
+        if (!trending || !trending.media || trending.media.length === 0) {
+          row.innerHTML = `<div class="empty-text">No trending anime</div>`;
+          return;
+        }
+        row.innerHTML = trending.media.map(cardHtml).join("");
+      })
+      .catch((e) => {
+        console.error(e);
+        if (isStale()) return;
+        const row = document.getElementById("trending-row");
+        if (row) row.innerHTML = `<div class="empty-text">Failed to load</div>`;
+      });
 
-    const onVisibility = () => {
-      if (document.hidden) stopHero();
-      else if (slideshowEl && heroCount > 1) startHero();
-    };
-    document.addEventListener("visibilitychange", onVisibility);
+    getRecentlyUpdated(1, 20)
+      .then((recent) => {
+        if (isStale()) return;
+        const row = document.getElementById("recent-row");
+        if (!row) return;
+        if (!recent || !recent.media || recent.media.length === 0) {
+          row.innerHTML = `<div class="empty-text">No recent updates</div>`;
+          return;
+        }
+        row.innerHTML = recent.media.map(cardHtml).join("");
+      })
+      .catch((e) => {
+        console.error(e);
+        if (isStale()) return;
+        const row = document.getElementById("recent-row");
+        if (row) row.innerHTML = `<div class="empty-text">Failed to load</div>`;
+      });
 
-    currentPage.destroy = () => {
-      stopHero();
-      observer.disconnect();
-      document.removeEventListener("visibilitychange", onVisibility);
-    };
+    getPopular(1, 20)
+      .then((popular) => {
+        if (isStale()) return;
+        const grid = document.getElementById("popular-grid");
+        const loader = document.getElementById("popular-loader");
+        if (!grid) return;
+        if (!popular || !popular.media) {
+          grid.innerHTML = `<div class="empty-text">No popular anime</div>`;
+          return;
+        }
+        grid.innerHTML = popular.media.map(cardHtml).join("");
+        popHasNext = popular.pageInfo ? popular.pageInfo.hasNextPage : false;
+        popPage = 2;
+
+        async function loadMorePopular() {
+          if (isStale() || popLoading || !popHasNext) return;
+          popLoading = true;
+          if (loader) loader.textContent = "Loading more...";
+          try {
+            const data = await getPopular(popPage, 20);
+            if (isStale()) return;
+            if (data) {
+              grid.insertAdjacentHTML("beforeend", data.media.map(cardHtml).join(""));
+              popHasNext = data.pageInfo.hasNextPage;
+              popPage++;
+            }
+          } catch (e) {
+            console.error(e);
+          }
+          popLoading = false;
+          if (loader) loader.textContent = "";
+        }
+
+        if (loader) {
+          if (popularObserver) popularObserver.disconnect();
+          popularObserver = new IntersectionObserver(
+            (entries) => {
+              if (entries[0].isIntersecting) loadMorePopular();
+            },
+            { rootMargin: "200px" },
+          );
+          popularObserver.observe(loader);
+        }
+      })
+      .catch((e) => {
+        console.error(e);
+        if (isStale()) return;
+        const grid = document.getElementById("popular-grid");
+        if (grid) grid.innerHTML = `<div class="empty-text">Failed to load</div>`;
+      });
   }
 
-  async function renderSearch(params) {
+async function renderSearch(params) {
+    const myToken = navToken;
+    function isStale() {
+      return myToken !== navToken;
+    }
     const q = params.get("q") || "";
     const page = parseInt(params.get("page")) || 1;
     const format = params.get("format") || "";
     const sort = params.get("sort") || (q ? "SEARCH_MATCH" : "TRENDING_DESC");
 
-    const nav = navToken;
-
-    let result;
-    if (q) result = await searchAnime(q, page, 24, format || null, sort);
-    else result = await browseAnime(page, 24, sort, format || null);
-
-    if (nav !== navToken) return;
+    function skeletonCards(count) {
+      return Array.from(
+        { length: count },
+        () => `
+        <div class="card skeleton-card">
+          <div class="card-image skeleton"></div>
+          <div class="card-body">
+            <div class="skeleton" style="height:13px"></div>
+            <div class="skeleton" style="height:13px;width:60%"></div>
+          </div>
+        </div>
+      `,
+      ).join("");
+    }
 
     const sortOpts = [
       { v: "SEARCH_MATCH", l: "Relevance" },
@@ -790,6 +933,32 @@
       });
       return "/search?" + sp.toString();
     }
+
+    let skeletonHtml = `<h1 class="section-title" style="margin-bottom:16px">${q ? `Results for "${esc(q)}"` : "Browse Anime"}</h1>`;
+    skeletonHtml += `<div class="filters">`;
+    sortOpts.forEach((o) => {
+      skeletonHtml += `<a href="${buildUrl({ sort: o.v, page: "1" })}" class="btn btn-sm ${sort === o.v ? "btn-primary" : "btn-outline"}">${o.l}</a>`;
+    });
+    skeletonHtml += `<span style="color:var(--text-dim)">|</span>`;
+    fmtOpts.forEach((o) => {
+      skeletonHtml += `<a href="${buildUrl({ format: o.v, page: "1" })}" class="btn btn-sm ${format === o.v ? "btn-primary" : "btn-outline"}">${o.l}</a>`;
+    });
+    skeletonHtml += `<span style="color:var(--text-dim)">|</span>`;
+    skeletonHtml += `</div>`;
+    skeletonHtml += `<div class="grid grid-wide" id="search-skeleton-grid">${skeletonCards(12)}</div>`;
+    skeletonHtml += `<div class="pagination skeleton-pagination" id="search-skeleton-pagination">${Array.from({ length: 5 }, () => `<div class="skeleton" style="width:40px;height:32px;border-radius:var(--radius)"></div>`).join("")}</div>`;
+    app.innerHTML = skeletonHtml;
+
+    let result;
+    try {
+      if (q) result = await searchAnime(q, page, 24, format || null, sort);
+      else result = await browseAnime(page, 24, sort, format || null);
+    } catch (e) {
+      if (isStale()) return;
+      app.innerHTML = `<div class="empty"><div class="empty-title">Something went wrong</div><div class="empty-text">${esc(e.message)}</div><a href="/" class="btn btn-primary">Go Home</a></div>`;
+      return;
+    }
+    if (isStale()) return;
 
     let html = `<h1 class="section-title" style="margin-bottom:16px">${q ? `Results for "${esc(q)}"` : "Browse Anime"}</h1>`;
     html += `<div class="filters">`;
@@ -833,12 +1002,86 @@
       html += `</div>`;
     }
 
-    if (nav !== navToken) return;
+    if (isStale()) return;
     app.innerHTML = html;
   }
+async function renderAnimeDetail(id) {
+    const myToken = navToken;
+    function isStale() {
+      return myToken !== navToken;
+    }
 
-  async function renderAnimeDetail(id) {
-    const anime = await getAnimeById(id);
+    function skeletonCards(count) {
+      return Array.from(
+        { length: count },
+        () => `
+        <div class="card skeleton-card" style="min-width:150px;max-width:150px">
+          <div class="card-image skeleton"></div>
+          <div class="card-body">
+            <div class="skeleton" style="height:13px"></div>
+            <div class="skeleton" style="height:13px;width:60%"></div>
+          </div>
+        </div>
+      `,
+      ).join("");
+    }
+
+    app.innerHTML = `
+      <div class="skeleton-detail-hero">
+        <div class="skeleton-detail-hero-bg skeleton" style="position:absolute;inset:0;opacity:0.15"></div>
+        <div class="detail-hero-overlay"></div>
+        <div class="detail-hero-content">
+          <div class="skeleton-detail-cover skeleton"></div>
+          <div class="detail-hero-info" style="flex:1;min-width:0">
+            <div class="skeleton" style="width:60%;height:28px;margin-bottom:8px"></div>
+            <div class="skeleton" style="width:40%;height:16px;margin-bottom:12px"></div>
+            <div style="display:flex;gap:6px;margin-bottom:14px">
+              <div class="skeleton" style="width:60px;height:22px;border-radius:999px"></div>
+              <div class="skeleton" style="width:60px;height:22px;border-radius:999px"></div>
+              <div class="skeleton" style="width:60px;height:22px;border-radius:999px"></div>
+            </div>
+            <div class="skeleton" style="width:100%;height:14px;margin-bottom:8px"></div>
+            <div class="skeleton" style="width:85%;height:14px;margin-bottom:16px"></div>
+            <div style="display:flex;gap:10px">
+              <div class="skeleton" style="width:140px;height:36px;border-radius:var(--radius)"></div>
+              <div class="skeleton" style="width:140px;height:36px;border-radius:var(--radius)"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="detail-body">
+        <div class="skeleton-stats">
+          ${Array.from({ length: 7 }, () => `<div class="skeleton-stat"><div class="skeleton" style="width:40px;height:10px"></div><div class="skeleton" style="width:60px;height:16px"></div></div>`).join("")}
+        </div>
+        <div class="detail-section">
+          <div class="skeleton" style="height:14px;margin-bottom:8px"></div>
+          <div class="skeleton" style="height:14px;margin-bottom:8px;width:95%"></div>
+          <div class="skeleton" style="height:14px;margin-bottom:8px;width:90%"></div>
+          <div class="skeleton" style="height:14px;width:80%"></div>
+        </div>
+        <div class="detail-section">
+          <div class="skeleton" style="width:100px;height:17px;margin-bottom:14px"></div>
+          <div class="skeleton" style="height:14px;width:120px;margin-bottom:14px"></div>
+          <div class="skeleton-episodes">
+            ${Array.from({ length: 18 }, () => `<div class="skeleton" style="height:38px;border-radius:var(--radius)"></div>`).join("")}
+          </div>
+        </div>
+        <div class="detail-section">
+          <div class="skeleton" style="width:80px;height:17px;margin-bottom:14px"></div>
+          <div class="scroll-row">${skeletonCards(6)}</div>
+        </div>
+      </div>
+    `;
+
+    let anime;
+    try {
+      anime = await getAnimeById(id);
+    } catch (e) {
+      if (isStale()) return;
+      app.innerHTML = `<div class="empty"><div class="empty-title">Something went wrong</div><div class="empty-text">${esc(e.message)}</div><a href="/" class="btn btn-primary">Go Home</a></div>`;
+      return;
+    }
+    if (isStale()) return;
     const t = title(anime);
     const engT = anime.title.english;
     const nativeT = anime.title.native;
@@ -1029,6 +1272,7 @@
     }
 
     html += `</div>`;
+    if (isStale()) return;
     app.innerHTML = html;
 
     const synEl = document.getElementById("synopsis");
@@ -1052,7 +1296,6 @@
       }
     });
   }
-
   function statusBadge(s) {
     const map = {
       FINISHED: { cls: "finished", label: "Finished" },
@@ -1078,8 +1321,37 @@
     return `${mins}m ${secs}s`;
   }
 
-  async function renderWatch(id, episode) {
-    const anime = await getAnimeById(id);
+async function renderWatch(id, episode) {
+    const myToken = navToken;
+    function isStale() {
+      return myToken !== navToken;
+    }
+
+    app.innerHTML = `
+      <div class="player-container">
+        <div class="skeleton" style="height:22px;width:60%;margin-bottom:8px"></div>
+        <div class="skeleton" style="height:14px;width:30%;margin-bottom:24px"></div>
+        <div class="skeleton-player skeleton" style="margin-bottom:16px"></div>
+        <div style="display:flex;gap:8px;margin-bottom:12px">
+          <div class="skeleton" style="width:80px;height:32px;border-radius:999px"></div>
+          <div class="skeleton" style="width:80px;height:32px;border-radius:999px"></div>
+        </div>
+        <div class="skeleton" style="height:16px;width:100px;margin-bottom:12px"></div>
+        <div class="skeleton-episodes">
+          ${Array.from({ length: 12 }, () => `<div class="skeleton" style="height:38px;border-radius:var(--radius)"></div>`).join("")}
+        </div>
+      </div>
+    `;
+
+    let anime;
+    try {
+      anime = await getAnimeById(id);
+    } catch (e) {
+      if (isStale()) return;
+      app.innerHTML = `<div class="empty"><div class="empty-title">Something went wrong</div><div class="empty-text">${esc(e.message)}</div><a href="/" class="btn btn-primary">Go Home</a></div>`;
+      return;
+    }
+    if (isStale()) return;
     const t = title(anime);
     const airedEps = getAiredCount(anime);
     const plannedEps = getPlannedCount(anime);
@@ -1238,6 +1510,7 @@
 
     function renderPlayer() {
       const region = document.getElementById("player-dynamic");
+      if (!region) return;
       region.innerHTML = playerAreaHtml();
 
       region.querySelectorAll("[data-source-index]").forEach((btn) => {
@@ -1392,6 +1665,7 @@
     html += `<div id="player-dynamic"></div>`;
     html += episodeGridHtml;
     html += `</div>`;
+    if (isStale()) return;
     app.innerHTML = html;
 
     renderPlayer();
@@ -1420,154 +1694,227 @@
     };
     discoverSources();
   }
-
-  function renderWatchlist() {
-    const list = getWatchlist();
-    let html = `<h1 class="section-title" style="margin-bottom:24px">My Watchlist</h1>`;
-
-    if (list.length === 0) {
-      html += `<div class="empty"><div class="empty-title">Your watchlist is empty</div><div class="empty-text">Find anime you like and add them to your list.</div><a href="/" class="btn btn-primary">Browse Anime</a></div>`;
-    } else {
-      html += `<div class="grid grid-wide">${list
-        .map((a) => {
-          const t = title(a),
-            img = cover(a),
-            s = a.averageScore,
-            fmt = a.format;
-          const eps = a.episodes || 0,
-            watched = getProgress(a.id);
-          return `<div class="card" style="position:relative">
-          <a href="/anime/${a.id}">
-            <div class="card-image">
-              <img src="${esc(img)}" alt="${esc(t)}">
-              ${s ? `<span class="card-score">${s}%</span>` : ""}
-              ${fmt ? `<span class="card-format">${esc(fmt)}</span>` : ""}
-            </div>
-            <div class="card-body">
-              <div class="card-title" style="margin-bottom:4px">${esc(t)}</div>
-              <div class="watchlist-progress">Progress: ${watched} / ${eps || "?"}</div>
-            </div>
-          </a>
-          <button class="wl-remove-btn" data-id="${a.id}">Remove</button>
-        </div>`;
-        })
-        .join("")}</div>`;
+function renderWatchlist() {
+    const myToken = navToken;
+    function isStale() {
+      return myToken !== navToken;
+    }
+    function skeletonCards(count) {
+      return Array.from(
+        { length: count },
+        () => `
+        <div class="card skeleton-card">
+          <div class="card-image skeleton"></div>
+          <div class="card-body">
+            <div class="skeleton" style="height:13px"></div>
+            <div class="skeleton" style="height:13px;width:60%"></div>
+          </div>
+        </div>
+      `,
+      ).join("");
     }
 
-    app.innerHTML = html;
-    document.querySelectorAll(".wl-remove-btn").forEach((btn) => {
-      btn.addEventListener("click", (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        removeFromWatchlist(parseInt(btn.dataset.id));
-        renderWatchlist();
+    app.innerHTML = `
+      <h1 class="section-title" style="margin-bottom:24px">My Watchlist</h1>
+      <div class="grid grid-wide">${skeletonCards(8)}</div>
+    `;
+
+    setTimeout(() => {
+      if (isStale()) return;
+      const list = getWatchlist();
+      let html = `<h1 class="section-title" style="margin-bottom:24px">My Watchlist</h1>`;
+
+      if (list.length === 0) {
+        html += `<div class="empty"><div class="empty-title">Your watchlist is empty</div><div class="empty-text">Find anime you like and add them to your list.</div><a href="/" class="btn btn-primary">Browse Anime</a></div>`;
+      } else {
+        html += `<div class="grid grid-wide">${list
+          .map((a) => {
+            const t = title(a),
+              img = cover(a),
+              s = a.averageScore,
+              fmt = a.format;
+            const eps = a.episodes || 0,
+              watched = getProgress(a.id);
+            return `<div class="card" style="position:relative">
+            <a href="/anime/${a.id}">
+              <div class="card-image">
+                <img src="${esc(img)}" alt="${esc(t)}">
+                ${s ? `<span class="card-score">${s}%</span>` : ""}
+                ${fmt ? `<span class="card-format">${esc(fmt)}</span>` : ""}
+              </div>
+              <div class="card-body">
+                <div class="card-title" style="margin-bottom:4px">${esc(t)}</div>
+                <div class="watchlist-progress">Progress: ${watched} / ${eps || "?"}</div>
+              </div>
+            </a>
+            <button class="wl-remove-btn" data-id="${a.id}">Remove</button>
+          </div>`;
+          })
+          .join("")}</div>`;
+      }
+
+      if (isStale()) return;
+      app.innerHTML = html;
+      document.querySelectorAll(".wl-remove-btn").forEach((btn) => {
+        btn.addEventListener("click", (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          removeFromWatchlist(parseInt(btn.dataset.id));
+          renderWatchlist();
+        });
       });
-    });
+    }, 300);
   }
 
   function renderHistory() {
-    const historyList = getHistory();
-    let html = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px"><h1 class="section-title">Watch History</h1>`;
-    if (historyList.length > 0)
-      html += `<button class="btn btn-outline btn-sm" id="clear-history-btn">Clear History</button>`;
-    html += `</div>`;
-
-    if (historyList.length === 0) {
-      html += `<div class="empty"><div class="empty-title">No watch history</div><div class="empty-text">Anime you watch will show up here.</div><a href="/" class="btn btn-primary">Browse Anime</a></div>`;
-    } else {
-      const latest = historyList[0];
-      if (latest) {
-        html += `<div class="continue-card" id="continue-watching-card">
-          <div class="history-thumb"><img src="${esc(latest.coverImage?.extraLarge || latest.coverImage?.large || "")}" alt="${esc(latest.title)}"></div>
-          <div class="history-info">
-            <div class="continue-label">Continue Watching</div>
-            <h2 class="history-title" style="font-size:16px;font-weight:600">${esc(latest.title)}</h2>
-            <div class="history-ep">Episode ${latest.episode}</div>
-          </div>
-          <div><a href="/watch/${latest.animeId}/${latest.episode}" class="btn btn-primary btn-sm">Resume Ep ${latest.episode}</a></div>
-        </div>`;
-      }
-
-      html += `<div>${historyList
-        .map((item, i) => {
-          const ft = new Date(item.timestamp).toLocaleDateString(undefined, {
-            month: "short",
-            day: "numeric",
-            hour: "2-digit",
-            minute: "2-digit",
-          });
-          return `<div class="history-item" id="history-item-${i}">
-          <div class="history-thumb"><img src="${esc(item.coverImage?.extraLarge || item.coverImage?.large || "")}" alt="${esc(item.title)}"></div>
-          <div class="history-info">
-            <a href="/anime/${item.animeId}" class="history-title" style="font-weight:600;display:block">${esc(item.title)}</a>
-            <div class="history-ep">Episode ${item.episode}</div>
-            <div class="history-time">${ft}</div>
-          </div>
-          <div class="history-actions"><a href="/watch/${item.animeId}/${item.episode}" class="btn btn-outline btn-sm">Watch Again</a></div>
-        </div>`;
-        })
-        .join("")}</div>`;
+    const myToken = navToken;
+    function isStale() {
+      return myToken !== navToken;
     }
 
-    app.innerHTML = html;
-    const clearBtn = document.getElementById("clear-history-btn");
-    if (clearBtn)
-      clearBtn.addEventListener("click", () => {
-        clearHistory();
-        renderHistory();
-      });
+    app.innerHTML = `
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px">
+        <h1 class="section-title">Watch History</h1>
+        <div class="skeleton" style="width:110px;height:32px;border-radius:var(--radius)"></div>
+      </div>
+      <div class="skeleton" style="height:80px;border-radius:var(--radius-lg);margin-bottom:32px"></div>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        ${Array.from({ length: 6 }, () => `<div class="skeleton" style="height:80px;border-radius:var(--radius-lg)"></div>`).join("")}
+      </div>
+    `;
+
+    setTimeout(() => {
+      if (isStale()) return;
+      const historyList = getHistory();
+      let html = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px"><h1 class="section-title">Watch History</h1>`;
+      if (historyList.length > 0)
+        html += `<button class="btn btn-outline btn-sm" id="clear-history-btn">Clear History</button>`;
+      html += `</div>`;
+
+      if (historyList.length === 0) {
+        html += `<div class="empty"><div class="empty-title">No watch history</div><div class="empty-text">Anime you watch will show up here.</div><a href="/" class="btn btn-primary">Browse Anime</a></div>`;
+      } else {
+        const latest = historyList[0];
+        if (latest) {
+          html += `<div class="continue-card" id="continue-watching-card">
+            <div class="history-thumb"><img src="${esc(latest.coverImage?.extraLarge || latest.coverImage?.large || "")}" alt="${esc(latest.title)}"></div>
+            <div class="history-info">
+              <div class="continue-label">Continue Watching</div>
+              <h2 class="history-title" style="font-size:16px;font-weight:600">${esc(latest.title)}</h2>
+              <div class="history-ep">Episode ${latest.episode}</div>
+            </div>
+            <div><a href="/watch/${latest.animeId}/${latest.episode}" class="btn btn-primary btn-sm">Resume Ep ${latest.episode}</a></div>
+          </div>`;
+        }
+
+        html += `<div>${historyList
+          .map((item, i) => {
+            const ft = new Date(item.timestamp).toLocaleDateString(undefined, {
+              month: "short",
+              day: "numeric",
+              hour: "2-digit",
+              minute: "2-digit",
+            });
+            return `<div class="history-item" id="history-item-${i}">
+            <div class="history-thumb"><img src="${esc(item.coverImage?.extraLarge || item.coverImage?.large || "")}" alt="${esc(item.title)}"></div>
+            <div class="history-info">
+              <a href="/anime/${item.animeId}" class="history-title" style="font-weight:600;display:block">${esc(item.title)}</a>
+              <div class="history-ep">Episode ${item.episode}</div>
+              <div class="history-time">${ft}</div>
+            </div>
+            <div class="history-actions"><a href="/watch/${item.animeId}/${item.episode}" class="btn btn-outline btn-sm">Watch Again</a></div>
+          </div>`;
+          })
+          .join("")}</div>`;
+      }
+
+      if (isStale()) return;
+      app.innerHTML = html;
+      const clearBtn = document.getElementById("clear-history-btn");
+      if (clearBtn)
+        clearBtn.addEventListener("click", () => {
+          clearHistory();
+          renderHistory();
+        });
+    }, 300);
   }
 
   function renderAbout() {
+    const myToken = navToken;
+    function isStale() {
+      return myToken !== navToken;
+    }
+
+    app.innerHTML = `
+      <div class="about">
+        <div class="skeleton" style="height:18px;width:150px;margin-bottom:16px"></div>
+        <div class="skeleton" style="height:14px;margin-bottom:8px"></div>
+        <div class="skeleton" style="height:14px;margin-bottom:8px;width:95%"></div>
+        <div class="skeleton" style="height:14px;margin-bottom:24px;width:90%"></div>
+        <div class="skeleton" style="height:16px;width:120px;margin:28px 0 12px"></div>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          ${Array.from({ length: 5 }, () => `<div class="skeleton" style="height:14px"></div>`).join("")}
+        </div>
+        <div class="about-connect" style="margin-top:24px">
+          <div class="skeleton" style="height:280px;border-radius:var(--radius-lg)"></div>
+          <div class="skeleton" style="height:280px;border-radius:var(--radius-lg)"></div>
+        </div>
+      </div>
+    `;
+
+    setTimeout(() => {
+      if (isStale()) return;
     const discordIcon = `<svg width="20" height="20" viewBox="0 0 24 24" fill="#fff" aria-hidden="true"><path d="M20.317 4.37a19.79 19.79 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028c.462-.63.874-1.295 1.226-1.994a.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128c.126-.094.252-.192.372-.291a.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z"/></svg>`;
     const githubIcon = `<svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/></svg>`;
 
-    let html = `<div class="about">`;
-    html += `<h1 class="section-title" style="margin-bottom:8px">About AniCult</h1>`;
-    html += `<p class="about-text">AniCult is a free, ad-free anime streaming experience that runs entirely in your browser. Browse anime powered by AniList, stream instantly through the built-in player, and track your watchlist, history, and episode progress with no account or sign-up required.</p>`;
+      let html = `<div class="about">`;
+      html += `<h1 class="section-title" style="margin-bottom:8px">About AniCult</h1>`;
+      html += `<p class="about-text">AniCult is a free, ad-free anime streaming experience that runs entirely in your browser. Browse anime powered by AniList, stream instantly through the built-in player, and track your watchlist, history, and episode progress with no account or sign-up required.</p>`;
 
-    html += `<h2 class="about-subtitle">What's Inside</h2>`;
-    html += `<ul class="about-list">`;
-    html += `<li>Trending, popular, and recently updated anime refreshed directly from AniList</li>`;
-    html += `<li>Search with format filters (TV, Movie, OVA, ONA, Special) and 6 sort options</li>`;
-    html += `<li>Sub/Dub player with autoplay, auto-next, and error retry support — choose Megavid, AniXo, or MegaPlay (Anikoto + MAL/AniList at megaplay.buzz)</li>`;
-    html += `<li>Watchlist, watch history, and episode progress saved locally in your browser</li>`;
-    html += `<li>Fully responsive design built for both desktop and mobile devices</li>`;
-    html += `</ul>`;
+      html += `<h2 class="about-subtitle">What's Inside</h2>`;
+      html += `<ul class="about-list">`;
+      html += `<li>Trending, popular, and recently updated anime refreshed directly from AniList</li>`;
+      html += `<li>Search with format filters (TV, Movie, OVA, ONA, Special) and 6 sort options</li>`;
+      html += `<li>Sub/Dub player with autoplay, auto-next, and error retry support — choose Megavid, AniXo, or MegaPlay (Anikoto + MAL/AniList at megaplay.buzz)</li>`;
+      html += `<li>Watchlist, watch history, and episode progress saved locally in your browser</li>`;
+      html += `<li>Fully responsive design built for both desktop and mobile devices</li>`;
+      html += `</ul>`;
 
-    html += `<div class="about-connect">`;
-    html += `<div class="about-card-col">`;
-    html += `<div class="about-dev-header"><span class="about-dev-badge">Founded by</span></div>`;
-    html += `<div class="about-discord">`;
-    html += `<img class="about-discord-banner" src="https://cdn.discordapp.com/banners/1455877276007796738/a_5d74cf1372c78893f1ac6c1f3170a7ba.gif?size=1024" alt="Dacca Cult banner" loading="lazy">`;
-    html += `<div class="about-discord-body">`;
-    html += `<img class="about-discord-icon" src="https://cdn.discordapp.com/icons/1455877276007796738/b863a4836ae39be4a9afbecd969504c5.png?size=256" alt="Dacca Cult icon" loading="lazy">`;
-    html += `<div class="about-discord-name">Dacca Cult</div>`;
-    html += `<div class="about-discord-meta"><span>237 members</span><span class="about-sep">&middot;</span><span class="about-online"><i class="presence-dot"></i>27 online</span></div>`;
-    html += `<p class="about-discord-desc">We value freedom of speech, ensuring a welcoming space for community bonding with dedicated rooms for various discussions.</p>`;
-    html += `<a href="https://discord.gg/rsC4V32GZa" target="_blank" rel="noopener noreferrer" class="btn btn-primary">${discordIcon}Join Server</a>`;
-    html += `</div></div></div>`;
-    html += `<div class="about-card-col">`;
-    html += `<div class="about-dev-header"><span class="about-dev-badge">Main Developer of AniCult</span></div>`;
-    html += `<a class="about-row" href="https://github.com/aluukill/AniCult" target="_blank" rel="noopener noreferrer">${githubIcon}<span class="about-card-text"><span class="about-link-title">Source on GitHub</span><span class="about-link-text">Star the project, report issues, or contribute</span></span></a>`;
-    html += `<a class="about-row" href="https://linktr.ee/aluukill" target="_blank" rel="noopener noreferrer"><img class="about-social-logo" src="https://assets.streamlinehq.com/image/private/w_300,h_300,ar_1/f_auto/v1/icons/logos/linktree-hrggdeqdzll06zjl9h6j.png/linktree-bafynmeua3noot52xbu71.png?_a=DATAiZAAZAA0" alt="Linktree" loading="lazy"><span class="about-card-text"><span class="about-link-title">Linktree</span><span class="about-link-text">@aluukill</span></span></a>`;
-    html += `<a class="about-row" href="https://syedtanvir.vercel.app" target="_blank" rel="noopener noreferrer"><img class="about-portfolio-logo" src="https://syedtanvir.vercel.app/assets/icon.png" alt="Portfolio" loading="lazy"><span class="about-card-text"><span class="about-link-title">Portfolio</span><span class="about-link-text">syedtanvir.vercel.app</span></span></a>`;
-    html += `</div>`;
-    html += `</div>`;
+      html += `<div class="about-connect">`;
+      html += `<div class="about-card-col">`;
+      html += `<div class="about-dev-header"><span class="about-dev-badge">Founded by</span></div>`;
+      html += `<div class="about-discord">`;
+      html += `<img class="about-discord-banner" src="https://cdn.discordapp.com/banners/1455877276007796738/a_5d74cf1372c78893f1ac6c1f3170a7ba.gif?size=1024" alt="Dacca Cult banner" loading="lazy">`;
+      html += `<div class="about-discord-body">`;
+      html += `<img class="about-discord-icon" src="https://cdn.discordapp.com/icons/1455877276007796738/b863a4836ae39be4a9afbecd969504c5.png?size=256" alt="Dacca Cult icon" loading="lazy">`;
+      html += `<div class="about-discord-name">Dacca Cult</div>`;
+      html += `<div class="about-discord-meta"><span>237 members</span><span class="about-sep">&middot;</span><span class="about-online"><i class="presence-dot"></i>27 online</span></div>`;
+      html += `<p class="about-discord-desc">We value freedom of speech, ensuring a welcoming space for community bonding with dedicated rooms for various discussions.</p>`;
+      html += `<a href="https://discord.gg/rsC4V32GZa" target="_blank" rel="noopener noreferrer" class="btn btn-primary">${discordIcon}Join Server</a>`;
+      html += `</div></div></div>`;
+      html += `<div class="about-card-col">`;
+      html += `<div class="about-dev-header"><span class="about-dev-badge">Main Developer of AniCult</span></div>`;
+      html += `<a class="about-row" href="https://github.com/aluukill/AniCult" target="_blank" rel="noopener noreferrer">${githubIcon}<span class="about-card-text"><span class="about-link-title">Source on GitHub</span><span class="about-link-text">Star the project, report issues, or contribute</span></span></a>`;
+      html += `<a class="about-row" href="https://linktr.ee/aluukill" target="_blank" rel="noopener noreferrer"><img class="about-social-logo" src="https://assets.streamlinehq.com/image/private/w_300,h_300,ar_1/f_auto/v1/icons/logos/linktree-hrggdeqdzll06zjl9h6j.png/linktree-bafynmeua3noot52xbu71.png?_a=DATAiZAAZAA0" alt="Linktree" loading="lazy"><span class="about-card-text"><span class="about-link-title">Linktree</span><span class="about-link-text">@aluukill</span></span></a>`;
+      html += `<a class="about-row" href="https://syedtanvir.vercel.app" target="_blank" rel="noopener noreferrer"><img class="about-portfolio-logo" src="https://syedtanvir.vercel.app/assets/icon.png" alt="Portfolio" loading="lazy"><span class="about-card-text"><span class="about-link-title">Portfolio</span><span class="about-link-text">syedtanvir.vercel.app</span></span></a>`;
+      html += `</div>`;
+      html += `</div>`;
 
-    html += `<div class="about-more">`;
-    html += `<div class="about-dev-header"><span class="about-dev-badge">More of Us</span></div>`;
-    html += `<a class="about-platform" href="https://movicult.vercel.app" target="_blank" rel="noopener noreferrer">`;
-    html += `<img class="about-platform-logo" src="https://movicult.vercel.app/logo.png" alt="MoviCult logo" loading="lazy">`;
-    html += `<div class="about-platform-body">`;
-    html += `<div class="about-link-title">MoviCult</div>`;
-    html += `<div class="about-platform-desc">Free movies and TV shows without ads. Stream the latest movies and hit TV series in full HD — no sign-up required, no interruptions, just press play and enjoy.</div>`;
-    html += `<span class="btn btn-primary about-platform-cta">Visit MoviCult</span>`;
-    html += `</div>`;
-    html += `</a>`;
-    html += `</div>`;
+      html += `<div class="about-more">`;
+      html += `<div class="about-dev-header"><span class="about-dev-badge">More of Us</span></div>`;
+      html += `<a class="about-platform" href="https://movicult.vercel.app" target="_blank" rel="noopener noreferrer">`;
+      html += `<img class="about-platform-logo" src="https://movicult.vercel.app/logo.png" alt="MoviCult logo" loading="lazy">`;
+      html += `<div class="about-platform-body">`;
+      html += `<div class="about-link-title">MoviCult</div>`;
+      html += `<div class="about-platform-desc">Free movies and TV shows without ads. Stream the latest movies and hit TV series in full HD — no sign-up required, no interruptions, just press play and enjoy.</div>`;
+      html += `<span class="btn btn-primary about-platform-cta">Visit MoviCult</span>`;
+      html += `</div>`;
+      html += `</a>`;
+      html += `</div>`;
 
-    app.innerHTML = html;
+      if (isStale()) return;
+      app.innerHTML = html;
+    }, 300);
   }
 
   const NOTICE_FILE = "notice.json";
