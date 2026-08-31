@@ -140,10 +140,6 @@ select:focus {
   border-color: var(--accent);
 }
 
-/* ==========================================================================
-   NAVIGATION & HEADER
-   ========================================================================== */
-
 .nav {
   position: fixed;
   top: 0;
@@ -169,13 +165,14 @@ select:focus {
   position: relative;
 }
 
-/* Brand Logo */
 .nav-logo {
   display: inline-flex;
   align-items: center;
   text-decoration: none;
   flex-shrink: 0;
-  transition: opacity var(--transition), transform var(--transition);
+  transition:
+    opacity var(--transition),
+    transform var(--transition);
 }
 
 .nav-logo:hover,
@@ -189,7 +186,6 @@ select:focus {
   object-fit: contain;
 }
 
-/* Desktop Navigation Links */
 .nav-links {
   display: flex;
   align-items: center;
@@ -222,7 +218,6 @@ select:focus {
   font-weight: 600;
 }
 
-/* Toggle Buttons (Hidden by default on desktop) */
 .nav-toggle {
   display: none;
   align-items: center;
@@ -284,7 +279,6 @@ select:focus {
   fill: currentColor;
 }
 
-/* Search Form (Desktop) */
 .nav-search-wrap {
   position: relative;
   width: 280px;
@@ -339,7 +333,9 @@ select:focus {
   font-weight: 600;
   cursor: pointer;
   flex-shrink: 0;
-  transition: background var(--transition), transform var(--transition);
+  transition:
+    background var(--transition),
+    transform var(--transition);
 }
 
 .nav-search button:hover {
@@ -350,7 +346,6 @@ select:focus {
   transform: scale(0.97);
 }
 
-/* Search Suggestions */
 .search-suggestions {
   display: none;
   position: absolute;
@@ -429,7 +424,6 @@ select:focus {
   font-size: 13.5px;
 }
 
-/* Animations */
 @keyframes navSlideDown {
   from {
     opacity: 0;
@@ -441,10 +435,6 @@ select:focus {
   }
 }
 
-/* ==========================================================================
-   MOBILE & RESPONSIVE NAVBAR (max-width: 860px)
-   ========================================================================== */
-
 @media (max-width: 860px) {
   .nav-container {
     padding: 0 14px;
@@ -454,13 +444,11 @@ select:focus {
     position: relative;
   }
 
-  /* Left: Hamburger */
   .nav-toggle {
     display: flex;
     order: 1;
   }
 
-  /* Center: AniCult Brand */
   .nav-logo {
     order: 2;
     position: absolute;
@@ -473,7 +461,6 @@ select:focus {
     height: 30px;
   }
 
-  /* Right: Search Toggle */
   .nav-search-section {
     order: 3;
   }
@@ -482,7 +469,6 @@ select:focus {
     display: flex;
   }
 
-  /* Mobile Nav Links Dropdown */
   .nav-links {
     display: none;
     position: fixed;
@@ -524,7 +510,6 @@ select:focus {
     border-left-color: transparent;
   }
 
-  /* Mobile Search Bar Dropdown */
   .nav-search-wrap {
     display: none;
     position: fixed;
@@ -568,7 +553,6 @@ select:focus {
     font-size: 14px;
   }
 
-  /* Mobile Search Suggestions Dropdown */
   .search-suggestions {
     position: absolute;
     top: calc(100% + 2px);

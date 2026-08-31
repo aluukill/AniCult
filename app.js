@@ -96,7 +96,12 @@
     return /^https:\/\/megaplay\.buzz\//.test(url);
   }
 
-  async function requestMegaPlayMapping({ idType, externalId, episode, message }) {
+  async function requestMegaPlayMapping({
+    idType,
+    externalId,
+    episode,
+    message,
+  }) {
     const payload = {
       id_type: idType,
       external_id: Number(externalId),
@@ -115,7 +120,8 @@
       throw new Error(text || `Mapping request failed: ${res.status}`);
     }
     const data = await res.json().catch(() => ({}));
-    if (data && data.ok === false) throw new Error(data.message || "Mapping request failed");
+    if (data && data.ok === false)
+      throw new Error(data.message || "Mapping request failed");
     return data;
   }
 
@@ -136,7 +142,8 @@
   function classifyPlayerMessage(d) {
     if (!d || typeof d !== "object") return null;
     if (d.channel === "megacloud") {
-      if (d.event === "complete") return { provider: "megaplay", state: "ended" };
+      if (d.event === "complete")
+        return { provider: "megaplay", state: "ended" };
       if (d.event === "time") return { provider: "megaplay", state: "playing" };
       if (d.event === "error")
         return { provider: "megaplay", state: "error", message: d.message };
@@ -146,7 +153,8 @@
       return { provider: "megavid", state: "playing" };
     }
     if (d.channel === "kisskh") {
-      if (d.event === "complete") return { provider: "megavid", state: "ended" };
+      if (d.event === "complete")
+        return { provider: "megavid", state: "ended" };
       if (d.event === "time") return { provider: "megavid", state: "playing" };
       if (
         d.event === "error" ||
@@ -1273,10 +1281,13 @@
               episode: String(episode),
               message,
             });
-            if (statusEl) statusEl.textContent = "Thanks — we received your request.";
+            if (statusEl)
+              statusEl.textContent = "Thanks — we received your request.";
             mappingBtn.textContent = "Sent";
           } catch (err) {
-            if (statusEl) statusEl.textContent = err.message || "Something went wrong. Please try again.";
+            if (statusEl)
+              statusEl.textContent =
+                err.message || "Something went wrong. Please try again.";
             mappingBtn.disabled = false;
           }
         });
@@ -1288,7 +1299,11 @@
       if (!d) return;
       const iframe = app.querySelector("iframe");
       if (!iframe || e.source !== iframe.contentWindow) return;
-      if (d.channel === "megacloud" && e.origin && !isTrustedMegaPlayOrigin(e.origin)) {
+      if (
+        d.channel === "megacloud" &&
+        e.origin &&
+        !isTrustedMegaPlayOrigin(e.origin)
+      ) {
         return;
       }
       if (d.type === "watching-log") {
@@ -1637,27 +1652,26 @@
       const data = await gql(q, { search: query });
       const media = data.Page.media;
       if (!media.length) {
-        suggestionsEl.innerHTML = '<div class="search-suggestions-empty">No suggestions</div>';
+        suggestionsEl.innerHTML =
+          '<div class="search-suggestions-empty">No suggestions</div>';
         suggestionsEl.classList.add("open");
         suggestionItems = [];
         return;
       }
       suggestionsEl.innerHTML = media
-        .map(
-          (a, i) => {
-            const t = title(a);
-            const fmt = a.format || "";
-            const score = a.averageScore ? a.averageScore + "%" : "";
-            const meta = [fmt, score].filter(Boolean).join(" \u00b7 ");
-            return `<a href="#/anime/${a.id}" class="search-suggestion" data-index="${i}">
+        .map((a, i) => {
+          const t = title(a);
+          const fmt = a.format || "";
+          const score = a.averageScore ? a.averageScore + "%" : "";
+          const meta = [fmt, score].filter(Boolean).join(" \u00b7 ");
+          return `<a href="#/anime/${a.id}" class="search-suggestion" data-index="${i}">
               <img src="${esc(a.coverImage?.large || "")}" alt="${esc(t)}">
               <div class="search-suggestion-info">
                 <div class="search-suggestion-title">${esc(t)}</div>
                 ${meta ? `<div class="search-suggestion-meta">${esc(meta)}</div>` : ""}
               </div>
             </a>`;
-          },
-        )
+        })
         .join("");
       suggestionsEl.classList.add("open");
       suggestionItems = suggestionsEl.querySelectorAll(".search-suggestion");
@@ -1681,7 +1695,10 @@
     if (!suggestionsEl.classList.contains("open")) return;
     if (e.key === "ArrowDown") {
       e.preventDefault();
-      activeSuggestion = Math.min(activeSuggestion + 1, suggestionItems.length - 1);
+      activeSuggestion = Math.min(
+        activeSuggestion + 1,
+        suggestionItems.length - 1,
+      );
       updateActive();
     } else if (e.key === "ArrowUp") {
       e.preventDefault();
@@ -1775,7 +1792,10 @@
   });
 
   document.addEventListener("click", (e) => {
-    if (!e.target.closest(".nav-search-wrap") && !e.target.closest("#nav-search-toggle")) {
+    if (
+      !e.target.closest(".nav-search-wrap") &&
+      !e.target.closest("#nav-search-toggle")
+    ) {
       if (navSearchWrap && navSearchWrap.classList.contains("open")) {
         closeSearch();
       } else {
@@ -1809,7 +1829,8 @@
 
   window.addEventListener("hashchange", () => {
     if (navLinks.classList.contains("open")) closeMenu();
-    if (navSearchWrap && navSearchWrap.classList.contains("open")) closeSearch();
+    if (navSearchWrap && navSearchWrap.classList.contains("open"))
+      closeSearch();
     route();
   });
   route();
