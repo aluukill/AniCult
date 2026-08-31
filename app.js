@@ -469,7 +469,7 @@
     const score = anime.averageScore;
     const fmt = anime.format;
     const ep = epText(anime);
-    return `<a href="#/anime/${anime.id}" class="card">
+    return `<a href="/anime/${anime.id}" class="card">
       <div class="card-image">
         <img src="${esc(img)}" alt="${esc(t)}" loading="lazy">
         ${score ? `<span class="card-score">${score}%</span>` : ""}
@@ -480,11 +480,19 @@
     </a>`;
   }
 
-  function parseHash() {
-    const hash = location.hash.slice(1) || "/";
-    const [path, qs] = hash.split("?");
-    const params = new URLSearchParams(qs || "");
+  function parsePath() {
+    const url = new URL(location.href);
+    let path = url.pathname || "/";
+    if (path.length > 1 && path.endsWith("/")) path = path.slice(0, -1);
+    const params = url.searchParams;
     return { path, params };
+  }
+
+  function navigate(to) {
+    if (location.pathname + location.search !== to) {
+      history.pushState(null, "", to);
+    }
+    route();
   }
 
   async function route() {
@@ -493,7 +501,7 @@
       currentPage = { destroy: null };
     }
     navToken++;
-    const { path, params } = parseHash();
+    const { path, params } = parsePath();
 
     app.innerHTML = `<div class="loading"><div class="loading-spinner"></div><div>Loading...</div></div>`;
 
@@ -509,10 +517,10 @@
       else if (path === "/history") renderHistory();
       else if (path === "/about") renderAbout();
       else
-        app.innerHTML = `<div class="empty"><div class="empty-title">404</div><div class="empty-text">Page not found</div><a href="#/" class="btn btn-primary">Go Home</a></div>`;
+        app.innerHTML = `<div class="empty"><div class="empty-title">404</div><div class="empty-text">Page not found</div><a href="/" class="btn btn-primary">Go Home</a></div>`;
     } catch (err) {
       console.error(err);
-      app.innerHTML = `<div class="empty"><div class="empty-title">Something went wrong</div><div class="empty-text">${esc(err.message)}</div><a href="#/" class="btn btn-primary">Go Home</a></div>`;
+      app.innerHTML = `<div class="empty"><div class="empty-title">Something went wrong</div><div class="empty-text">${esc(err.message)}</div><a href="/" class="btn btn-primary">Go Home</a></div>`;
     }
 
     updateActiveNav();
@@ -566,8 +574,8 @@
                 <div class="hero-slide-desc">${esc(desc)}</div>
                 <div class="hero-slide-meta">${anime.format || "TV"} · ${airedText} eps aired${airMeta ? " · " + esc(airMeta) : ""}</div>
                 <div class="hero-slide-actions">
-                  <a href="#/anime/${anime.id}" class="btn btn-primary">View Details</a>
-                  ${aired > 0 ? `<a href="#/watch/${anime.id}/1" class="btn btn-outline">Watch Now</a>` : ""}
+                  <a href="/anime/${anime.id}" class="btn btn-primary">View Details</a>
+                  ${aired > 0 ? `<a href="/watch/${anime.id}/1" class="btn btn-outline">Watch Now</a>` : ""}
                 </div>
               </div>
             </div>
@@ -585,11 +593,11 @@
       html += `</div>`;
     }
 
-    html += `<section class="section"><div class="section-header"><h2 class="section-title">Trending Now</h2><a href="#/search?sort=TRENDING_DESC" class="section-link">View All</a></div><div class="scroll-row">${trending.media.map(cardHtml).join("")}</div></section>`;
+    html += `<section class="section"><div class="section-header"><h2 class="section-title">Trending Now</h2><a href="/search?sort=TRENDING_DESC" class="section-link">View All</a></div><div class="scroll-row">${trending.media.map(cardHtml).join("")}</div></section>`;
 
-    html += `<section class="section"><div class="section-header"><h2 class="section-title">Recently Updated</h2><a href="#/search?sort=UPDATED_AT_DESC" class="section-link">View All</a></div><div class="scroll-row">${recent.media.map(cardHtml).join("")}</div></section>`;
+    html += `<section class="section"><div class="section-header"><h2 class="section-title">Recently Updated</h2><a href="/search?sort=UPDATED_AT_DESC" class="section-link">View All</a></div><div class="scroll-row">${recent.media.map(cardHtml).join("")}</div></section>`;
 
-    html += `<section class="section"><div class="section-header"><h2 class="section-title">All Time Popular</h2><a href="#/search?sort=POPULARITY_DESC" class="section-link">View All</a></div><div id="popular-grid" class="grid">${popular.media.map(cardHtml).join("")}</div><div id="popular-loader" style="text-align:center;padding:2rem;color:var(--text-muted)"></div></section>`;
+    html += `<section class="section"><div class="section-header"><h2 class="section-title">All Time Popular</h2><a href="/search?sort=POPULARITY_DESC" class="section-link">View All</a></div><div id="popular-grid" class="grid">${popular.media.map(cardHtml).join("")}</div><div id="popular-loader" style="text-align:center;padding:2rem;color:var(--text-muted)"></div></section>`;
 
     app.innerHTML = html;
 
@@ -621,8 +629,15 @@
       dots.forEach((d, i) => d.classList.toggle("active", i === heroIndex));
     }
 
+    function stopHero() {
+      if (heroTimer) {
+        clearInterval(heroTimer);
+        heroTimer = null;
+      }
+    }
+
     function startHero() {
-      clearInterval(heroTimer);
+      stopHero();
       if (document.hidden) return;
       heroTimer = setInterval(() => showSlide(heroIndex + 1), 3000);
     }
@@ -646,26 +661,39 @@
           startHero();
         }),
       );
-      slideshowEl.addEventListener("mouseenter", () =>
-        clearInterval(heroTimer),
-      );
+      slideshowEl.addEventListener("mouseenter", stopHero);
       slideshowEl.addEventListener("mouseleave", startHero);
 
       let touchStartX = null;
-      slideshowEl.addEventListener("touchstart", (e) => {
-        touchStartX = e.changedTouches[0].clientX;
-        startHero();
-      });
-      slideshowEl.addEventListener("touchend", (e) => {
-        if (touchStartX === null) return;
-        const dx = e.changedTouches[0].clientX - touchStartX;
-        touchStartX = null;
-        if (Math.abs(dx) > 40) {
-          showSlide(heroIndex + (dx < 0 ? 1 : -1));
+      slideshowEl.addEventListener(
+        "touchstart",
+        (e) => {
+          touchStartX = e.changedTouches[0].clientX;
+          stopHero();
+        },
+        { passive: true },
+      );
+      slideshowEl.addEventListener(
+        "touchend",
+        (e) => {
+          if (touchStartX === null) {
+            startHero();
+            return;
+          }
+          const dx = e.changedTouches[0].clientX - touchStartX;
+          touchStartX = null;
+          if (Math.abs(dx) > 40) {
+            showSlide(heroIndex + (dx < 0 ? 1 : -1));
+          }
           startHero();
-        }
-      });
+        },
+        { passive: true },
+      );
       startHero();
+      // Safety: ensure autoplay is running even if a synchronous mouseenter cleared it on load
+      setTimeout(() => {
+        if (!heroTimer && !document.hidden && slideshowEl && heroCount > 1) startHero();
+      }, 100);
     }
 
     let popPage = 2;
@@ -705,13 +733,13 @@
     if (loader) observer.observe(loader);
 
     const onVisibility = () => {
-      if (document.hidden) clearInterval(heroTimer);
+      if (document.hidden) stopHero();
       else if (slideshowEl && heroCount > 1) startHero();
     };
     document.addEventListener("visibilitychange", onVisibility);
 
     currentPage.destroy = () => {
-      if (heroTimer) clearInterval(heroTimer);
+      stopHero();
       observer.disconnect();
       document.removeEventListener("visibilitychange", onVisibility);
     };
@@ -760,7 +788,7 @@
       Object.entries(p).forEach(([k, v]) => {
         if (v) sp.set(k, v);
       });
-      return "#/search?" + sp.toString();
+      return "/search?" + sp.toString();
     }
 
     let html = `<h1 class="section-title" style="margin-bottom:16px">${q ? `Results for "${esc(q)}"` : "Browse Anime"}</h1>`;
@@ -838,11 +866,11 @@
     if (airedEps > 0) {
       const resumeEp = watched + 1;
       if (watched > 0 && resumeEp <= airedEps) {
-        ctaHtml = `<a href="#/watch/${anime.id}/${resumeEp}" class="btn btn-primary">Continue Ep ${resumeEp}</a>`;
+        ctaHtml = `<a href="/watch/${anime.id}/${resumeEp}" class="btn btn-primary">Continue Ep ${resumeEp}</a>`;
       } else if (watched > 0) {
-        ctaHtml = `<a href="#/watch/${anime.id}/1" class="btn btn-primary">Rewatch Ep 1</a>`;
+        ctaHtml = `<a href="/watch/${anime.id}/1" class="btn btn-primary">Rewatch Ep 1</a>`;
       } else {
-        ctaHtml = `<a href="#/watch/${anime.id}/1" class="btn btn-primary">Start Watching</a>`;
+        ctaHtml = `<a href="/watch/${anime.id}/1" class="btn btn-primary">Start Watching</a>`;
       }
     }
 
@@ -967,7 +995,7 @@
 
         if (isReleased) {
           cls += isWatched ? " ep-btn-watched" : " ep-btn-aired";
-          attrs = `href="#/watch/${anime.id}/${i}"`;
+          attrs = `href="/watch/${anime.id}/${i}"`;
         } else {
           cls += " ep-btn-upcoming";
           lbl = upcomingEpLabel(anime, i);
@@ -989,7 +1017,7 @@
         .map((rel) => {
           const r = rel.node,
             rT = title(r);
-          return `<a href="#/anime/${r.id}" class="card">
+          return `<a href="/anime/${r.id}" class="card">
           <div class="card-image"><img src="${esc(r.coverImage.large)}" alt="${esc(rT)}" loading="lazy">
             ${r.averageScore ? `<span class="card-score">${r.averageScore}%</span>` : ""}
             <span class="related-badge">${esc(rel.relationType.replace(/_/g, " "))}</span>
@@ -1105,7 +1133,7 @@
           <div class="unavailable-title">Episode ${episode} hasn't aired yet</div>
           ${countdownHtml}
           <div class="unavailable-text">${latestText} ${nextEpDate ? "This episode becomes available here as soon as it airs on streaming platforms." : "The release schedule for upcoming episodes is currently unknown. Check back later."}</div>
-          ${airedEps > 0 ? `<a href="#/watch/${anime.id}/${airedEps}" class="btn btn-primary">Watch Latest Episode</a>` : ""}
+          ${airedEps > 0 ? `<a href="/watch/${anime.id}/${airedEps}" class="btn btn-primary">Watch Latest Episode</a>` : ""}
         </div>`;
       }
       return `<div class="player-unavailable">
@@ -1126,7 +1154,7 @@
         if (i === episode) cls += " ep-btn-current";
         if (isReleased) {
           cls += isWatched ? " ep-btn-watched" : " ep-btn-aired";
-          episodeGridHtml += `<a href="#/watch/${anime.id}/${i}" class="${cls}">${i}</a>`;
+          episodeGridHtml += `<a href="/watch/${anime.id}/${i}" class="${cls}">${i}</a>`;
         } else {
           cls += " ep-btn-upcoming";
           const lbl = upcomingEpLabel(anime, i);
@@ -1315,7 +1343,7 @@
       if (!cls || cls.provider !== currentProvider) return;
       if (cls.state === "ended") {
         if (episode < airedEps) {
-          location.hash = `#/watch/${anime.id}/${episode + 1}`;
+          navigate(`/watch/${anime.id}/${episode + 1}`);
         }
       } else if (cls.state === "error" && !error) {
         error =
@@ -1353,13 +1381,13 @@
 
     let html = `<div class="player-container">`;
     html += `<div class="player-info"><div>
-      <a href="#/anime/${anime.id}" class="player-title">${esc(t)}</a>
+      <a href="/anime/${anime.id}" class="player-title">${esc(t)}</a>
       <div class="player-episode">Episode ${episode}</div>
     </div><div class="player-nav">`;
     if (episode > 1)
-      html += `<a href="#/watch/${anime.id}/${episode - 1}" class="btn btn-outline btn-sm">${icons.arrowLeft()} Prev</a>`;
+      html += `<a href="/watch/${anime.id}/${episode - 1}" class="btn btn-outline btn-sm">${icons.arrowLeft()} Prev</a>`;
     if (episode < airedEps)
-      html += `<a href="#/watch/${anime.id}/${episode + 1}" class="btn btn-primary btn-sm">Next ${icons.arrowRight()}</a>`;
+      html += `<a href="/watch/${anime.id}/${episode + 1}" class="btn btn-primary btn-sm">Next ${icons.arrowRight()}</a>`;
     html += `</div></div>`;
     html += `<div id="player-dynamic"></div>`;
     html += episodeGridHtml;
@@ -1398,7 +1426,7 @@
     let html = `<h1 class="section-title" style="margin-bottom:24px">My Watchlist</h1>`;
 
     if (list.length === 0) {
-      html += `<div class="empty"><div class="empty-title">Your watchlist is empty</div><div class="empty-text">Find anime you like and add them to your list.</div><a href="#/" class="btn btn-primary">Browse Anime</a></div>`;
+      html += `<div class="empty"><div class="empty-title">Your watchlist is empty</div><div class="empty-text">Find anime you like and add them to your list.</div><a href="/" class="btn btn-primary">Browse Anime</a></div>`;
     } else {
       html += `<div class="grid grid-wide">${list
         .map((a) => {
@@ -1409,7 +1437,7 @@
           const eps = a.episodes || 0,
             watched = getProgress(a.id);
           return `<div class="card" style="position:relative">
-          <a href="#/anime/${a.id}">
+          <a href="/anime/${a.id}">
             <div class="card-image">
               <img src="${esc(img)}" alt="${esc(t)}">
               ${s ? `<span class="card-score">${s}%</span>` : ""}
@@ -1445,7 +1473,7 @@
     html += `</div>`;
 
     if (historyList.length === 0) {
-      html += `<div class="empty"><div class="empty-title">No watch history</div><div class="empty-text">Anime you watch will show up here.</div><a href="#/" class="btn btn-primary">Browse Anime</a></div>`;
+      html += `<div class="empty"><div class="empty-title">No watch history</div><div class="empty-text">Anime you watch will show up here.</div><a href="/" class="btn btn-primary">Browse Anime</a></div>`;
     } else {
       const latest = historyList[0];
       if (latest) {
@@ -1456,7 +1484,7 @@
             <h2 class="history-title" style="font-size:16px;font-weight:600">${esc(latest.title)}</h2>
             <div class="history-ep">Episode ${latest.episode}</div>
           </div>
-          <div><a href="#/watch/${latest.animeId}/${latest.episode}" class="btn btn-primary btn-sm">Resume Ep ${latest.episode}</a></div>
+          <div><a href="/watch/${latest.animeId}/${latest.episode}" class="btn btn-primary btn-sm">Resume Ep ${latest.episode}</a></div>
         </div>`;
       }
 
@@ -1471,11 +1499,11 @@
           return `<div class="history-item" id="history-item-${i}">
           <div class="history-thumb"><img src="${esc(item.coverImage?.extraLarge || item.coverImage?.large || "")}" alt="${esc(item.title)}"></div>
           <div class="history-info">
-            <a href="#/anime/${item.animeId}" class="history-title" style="font-weight:600;display:block">${esc(item.title)}</a>
+            <a href="/anime/${item.animeId}" class="history-title" style="font-weight:600;display:block">${esc(item.title)}</a>
             <div class="history-ep">Episode ${item.episode}</div>
             <div class="history-time">${ft}</div>
           </div>
-          <div class="history-actions"><a href="#/watch/${item.animeId}/${item.episode}" class="btn btn-outline btn-sm">Watch Again</a></div>
+          <div class="history-actions"><a href="/watch/${item.animeId}/${item.episode}" class="btn btn-outline btn-sm">Watch Again</a></div>
         </div>`;
         })
         .join("")}</div>`;
@@ -1625,7 +1653,7 @@
     if (q) {
       closeSuggestions();
       closeSearch();
-      location.hash = "/search?q=" + encodeURIComponent(q);
+      navigate("/search?q=" + encodeURIComponent(q));
       searchInput.value = "";
     }
   });
@@ -1664,7 +1692,7 @@
           const fmt = a.format || "";
           const score = a.averageScore ? a.averageScore + "%" : "";
           const meta = [fmt, score].filter(Boolean).join(" \u00b7 ");
-          return `<a href="#/anime/${a.id}" class="search-suggestion" data-index="${i}">
+          return `<a href="/anime/${a.id}" class="search-suggestion" data-index="${i}">
               <img src="${esc(a.coverImage?.large || "")}" alt="${esc(t)}">
               <div class="search-suggestion-info">
                 <div class="search-suggestion-title">${esc(t)}</div>
@@ -1711,7 +1739,7 @@
         closeSuggestions();
         closeSearch();
         searchInput.value = "";
-        location.hash = link.getAttribute("href");
+        navigate(link.getAttribute("href"));
       }
     } else if (e.key === "Escape") {
       closeSuggestions();
@@ -1792,6 +1820,38 @@
   });
 
   document.addEventListener("click", (e) => {
+    const anchor = e.target.closest("a");
+    if (
+      anchor &&
+      anchor.getAttribute("href") &&
+      anchor.getAttribute("href").startsWith("/") &&
+      !anchor.getAttribute("href").startsWith("//") &&
+      anchor.origin === location.origin &&
+      !anchor.target &&
+      !anchor.hasAttribute("download") &&
+      !e.ctrlKey &&
+      !e.metaKey &&
+      !e.shiftKey &&
+      e.button === 0
+    ) {
+      const href = anchor.getAttribute("href");
+      const isSpaRoute =
+        href === "/" ||
+        href.startsWith("/search") ||
+        href.startsWith("/anime/") ||
+        href.startsWith("/watch/") ||
+        href === "/watchlist" ||
+        href === "/history" ||
+        href === "/about";
+      if (isSpaRoute) {
+        e.preventDefault();
+        navigate(href);
+        if (navLinks.classList.contains("open")) closeMenu();
+        if (navSearchWrap && navSearchWrap.classList.contains("open"))
+          closeSearch();
+        return;
+      }
+    }
     if (
       !e.target.closest(".nav-search-wrap") &&
       !e.target.closest("#nav-search-toggle")
@@ -1808,26 +1868,34 @@
   });
 
   function updateActiveNav() {
-    const currentHash = location.hash || "#/";
+    const currentPath = location.pathname;
+    const currentFull = location.pathname + location.search;
     if (!navLinks) return;
     navLinks.querySelectorAll("a").forEach((link) => {
       const href = link.getAttribute("href");
-      if (href === currentHash) {
+      if (!href) return;
+      link.classList.remove("active");
+      if (href === "/") {
+        if (currentPath === "/" || currentPath === "") link.classList.add("active");
+      } else if (href.startsWith("/search")) {
+        const linkUrl = new URL(href, location.origin);
+        const curUrl = new URL(location.href);
+        if (linkUrl.pathname !== curUrl.pathname) return;
+        let matches = true;
+        for (const [k, v] of linkUrl.searchParams) {
+          if (curUrl.searchParams.get(k) !== v) {
+            matches = false;
+            break;
+          }
+        }
+        if (matches) link.classList.add("active");
+      } else if (currentFull === href || currentFull.startsWith(href)) {
         link.classList.add("active");
-      } else if (href !== "#/" && currentHash.startsWith(href)) {
-        link.classList.add("active");
-      } else if (
-        href === "#/" &&
-        (currentHash === "#/" || currentHash === "#" || currentHash === "")
-      ) {
-        link.classList.add("active");
-      } else {
-        link.classList.remove("active");
       }
     });
   }
 
-  window.addEventListener("hashchange", () => {
+  window.addEventListener("popstate", () => {
     if (navLinks.classList.contains("open")) closeMenu();
     if (navSearchWrap && navSearchWrap.classList.contains("open"))
       closeSearch();
