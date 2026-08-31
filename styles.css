@@ -10,8 +10,10 @@
   --accent-hover: #d32f3f;
   --border: #1e1e2a;
   --border-hover: #2a2a3a;
-  --radius: 10px;
-  --radius-lg: 16px;
+  --radius: 14px;
+  --radius-lg: 20px;
+  --radius-xl: 28px;
+  --radius-pill: 999px;
   --font: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   --max-width: 1280px;
   --nav-height: 60px;
@@ -73,7 +75,7 @@ body {
 
 ::-webkit-scrollbar-thumb {
   background: var(--border);
-  border-radius: 3px;
+  border-radius: var(--radius-pill);
 }
 
 ::-webkit-scrollbar-thumb:hover {
@@ -199,7 +201,7 @@ select:focus {
   font-size: 14px;
   font-weight: 500;
   color: var(--text-muted);
-  border-radius: 8px;
+  border-radius: var(--radius-pill);
   text-decoration: none;
   transition:
     color var(--transition),
@@ -227,7 +229,7 @@ select:focus {
   padding: 8px;
   background: rgba(255, 255, 255, 0.04);
   cursor: pointer;
-  border-radius: 10px;
+  border-radius: var(--radius);
   flex-shrink: 0;
   transition: background var(--transition);
 }
@@ -257,7 +259,7 @@ select:focus {
   background: rgba(255, 255, 255, 0.04);
   border: 1px solid rgba(255, 255, 255, 0.08);
   cursor: pointer;
-  border-radius: 10px;
+  border-radius: var(--radius);
   color: #e3e3e3;
   flex-shrink: 0;
   transition:
@@ -392,7 +394,7 @@ select:focus {
   width: 38px;
   height: 52px;
   object-fit: cover;
-  border-radius: 5px;
+  border-radius: 10px;
   flex-shrink: 0;
   background: var(--bg-card);
 }
@@ -495,7 +497,7 @@ select:focus {
     padding: 12px 16px;
     font-size: 14.5px;
     width: 100%;
-    border-radius: 8px;
+    border-radius: var(--radius);
     border-left: 3px solid transparent;
   }
 
@@ -641,7 +643,7 @@ select:focus {
   font-size: 12px;
   font-weight: 600;
   padding: 3px 8px;
-  border-radius: 6px;
+  border-radius: var(--radius-pill);
 }
 
 .card-format {
@@ -653,7 +655,7 @@ select:focus {
   font-size: 10px;
   font-weight: 600;
   padding: 3px 8px;
-  border-radius: 6px;
+  border-radius: var(--radius-pill);
   text-transform: uppercase;
 }
 
@@ -667,7 +669,7 @@ select:focus {
   font-size: 11px;
   font-weight: 500;
   padding: 3px 8px;
-  border-radius: 6px;
+  border-radius: var(--radius-pill);
 }
 
 .card-dub {
@@ -679,7 +681,7 @@ select:focus {
   font-size: 10px;
   font-weight: 700;
   padding: 3px 6px;
-  border-radius: 6px;
+  border-radius: var(--radius-pill);
   letter-spacing: 0.5px;
 }
 
@@ -813,7 +815,7 @@ select:focus {
 .btn-sm {
   padding: 5px 12px;
   font-size: 12px;
-  border-radius: 6px;
+  border-radius: var(--radius-pill);
 }
 
 .player-container {
@@ -1027,7 +1029,7 @@ select:focus {
 .history-thumb {
   width: 60px;
   aspect-ratio: 3 / 4;
-  border-radius: 8px;
+  border-radius: 12px;
   overflow: hidden;
   flex-shrink: 0;
   background: var(--bg-hover);
@@ -1073,7 +1075,7 @@ select:focus {
   padding: 16px;
   background: var(--bg-card);
   border: 1px solid var(--accent);
-  border-radius: var(--radius);
+  border-radius: var(--radius-lg);
   margin-bottom: 32px;
 }
 
@@ -1252,7 +1254,7 @@ select:focus {
   padding: 14px;
   background: var(--bg-card);
   border: 1px solid var(--border);
-  border-radius: var(--radius);
+  border-radius: var(--radius-lg);
   color: var(--text);
   text-decoration: none;
   text-align: center;
@@ -1267,7 +1269,7 @@ select:focus {
 .about-row img {
   width: 28px;
   height: 28px;
-  border-radius: 6px;
+  border-radius: 10px;
   object-fit: cover;
 }
 
@@ -1322,7 +1324,7 @@ select:focus {
 .about-platform-logo {
   width: 60px;
   height: 60px;
-  border-radius: 14px;
+  border-radius: 16px;
   object-fit: cover;
   flex-shrink: 0;
 }
@@ -1382,7 +1384,7 @@ select:focus {
 
 .scroll-row::-webkit-scrollbar-thumb {
   background: var(--border);
-  border-radius: 2px;
+  border-radius: var(--radius-pill);
 }
 
 .scroll-row .card {
@@ -1501,7 +1503,7 @@ select:focus {
   padding: 6px 16px;
   font-size: 13px;
   font-weight: 500;
-  border-radius: 4px;
+  border-radius: var(--radius-pill);
   background: transparent;
   color: var(--text-muted);
   border: none;
@@ -1535,7 +1537,7 @@ select:focus {
   padding: 6px 16px;
   font-size: 13px;
   font-weight: 500;
-  border-radius: 4px;
+  border-radius: var(--radius-pill);
   background: transparent;
   color: var(--text-muted);
   border: none;
@@ -1645,7 +1647,7 @@ select:focus {
   backdrop-filter: blur(8px);
   color: var(--accent);
   border: 1px solid rgba(230, 57, 70, 0.3);
-  border-radius: 6px;
+  border-radius: var(--radius-pill);
   font-size: 10px;
   padding: 3px 8px;
   z-index: 2;
@@ -1758,7 +1760,7 @@ select:focus {
 .detail-hero-tags span {
   font-size: 11px;
   padding: 3px 9px;
-  border-radius: 6px;
+  border-radius: var(--radius-pill);
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid rgba(255, 255, 255, 0.08);
   color: var(--text-muted);
@@ -1895,14 +1897,14 @@ select:focus {
   flex: 1;
   height: 4px;
   background: var(--bg-hover);
-  border-radius: 2px;
+  border-radius: var(--radius-pill);
   overflow: hidden;
 }
 
 .ep-progress-fill {
   height: 100%;
   background: linear-gradient(90deg, var(--accent), var(--accent-hover));
-  border-radius: 2px;
+  border-radius: var(--radius-pill);
   transition: width 0.5s ease;
 }
 
@@ -1977,7 +1979,7 @@ select:focus {
   text-transform: uppercase;
   letter-spacing: 0.5px;
   padding: 3px 8px;
-  border-radius: 6px;
+  border-radius: var(--radius-pill);
 }
 
 .status-badge.finished {
@@ -2016,7 +2018,7 @@ select:focus {
   font-size: 9px;
   font-weight: 600;
   padding: 2px 6px;
-  border-radius: 6px;
+  border-radius: var(--radius-pill);
   background: rgba(8, 8, 12, 0.75);
   backdrop-filter: blur(8px);
   color: var(--text-muted);
@@ -2182,7 +2184,7 @@ select:focus {
 .hero-slide-tags span {
   font-size: 11px;
   padding: 3px 9px;
-  border-radius: 6px;
+  border-radius: var(--radius-pill);
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid rgba(255, 255, 255, 0.08);
   color: var(--text-muted);
@@ -2289,7 +2291,7 @@ select:focus {
 .hero-dot.active {
   background: var(--accent);
   width: 22px;
-  border-radius: 4px;
+  border-radius: var(--radius-pill);
 }
 
 @media (max-width: 768px) {
@@ -2329,7 +2331,7 @@ select:focus {
     color: #fff;
     background: var(--accent);
     padding: 5px 10px;
-    border-radius: 8px;
+    border-radius: 12px;
     box-shadow: 0 4px 14px rgba(0, 0, 0, 0.5);
     text-shadow: none;
   }
