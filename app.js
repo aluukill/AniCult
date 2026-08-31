@@ -47,22 +47,6 @@
 
   const EMBED_PROVIDERS = [
     {
-      id: "megavid",
-      name: "Megavid",
-      makeUrl(episode, anilistId, lang = "sub", malId = null) {
-        const idType = malId ? "mal" : "ani";
-        const id = malId || anilistId;
-        return `https://megavid.buzz/${idType}/${id}/${episode}/${lang}?color=%23e63946&autoplay=true`;
-      },
-    },
-    {
-      id: "anixo",
-      name: "AniXo",
-      makeUrl(episode, anilistId, lang = "sub") {
-        return `https://anixo.buzz/embed/ani/${anilistId}/${episode}/${lang}?color=%23e63946`;
-      },
-    },
-    {
       id: "megaplay",
       name: "MegaPlay",
       makeUrl(episode, anilistId, lang = "sub", malId = null) {
@@ -84,6 +68,22 @@
         seriesUrl(id) {
           return `${ANIKOTO_API_BASE}/series/${id}`;
         },
+      },
+    },
+    {
+      id: "anixo",
+      name: "AniXo",
+      makeUrl(episode, anilistId, lang = "sub") {
+        return `https://anixo.buzz/embed/ani/${anilistId}/${episode}/${lang}?color=%23e63946`;
+      },
+    },
+    {
+      id: "megavid",
+      name: "Megavid",
+      makeUrl(episode, anilistId, lang = "sub", malId = null) {
+        const idType = malId ? "mal" : "ani";
+        const id = malId || anilistId;
+        return `https://megavid.buzz/${idType}/${id}/${episode}/${lang}?color=%23e63946&autoplay=true`;
       },
     },
   ];
