@@ -527,7 +527,7 @@
     window.scrollTo(0, 0);
   }
 
-async function renderHome() {
+  async function renderHome() {
     const myToken = navToken;
     function isStale() {
       return myToken !== navToken;
@@ -599,7 +599,8 @@ async function renderHome() {
 
     currentPage.destroy = () => {
       stopHero();
-      if (onHeroVisibility) document.removeEventListener("visibilitychange", onHeroVisibility);
+      if (onHeroVisibility)
+        document.removeEventListener("visibilitychange", onHeroVisibility);
       if (popularObserver) popularObserver.disconnect();
     };
 
@@ -758,11 +759,13 @@ async function renderHome() {
         );
         startHero();
         setTimeout(() => {
-          if (!heroTimer && !document.hidden && heroEl && heroCount > 1) startHero();
+          if (!heroTimer && !document.hidden && heroEl && heroCount > 1)
+            startHero();
         }, 100);
       }
 
-      if (onHeroVisibility) document.removeEventListener("visibilitychange", onHeroVisibility);
+      if (onHeroVisibility)
+        document.removeEventListener("visibilitychange", onHeroVisibility);
       onHeroVisibility = () => {
         if (document.hidden) stopHero();
         else if (heroEl && heroCount > 1) startHero();
@@ -786,7 +789,8 @@ async function renderHome() {
         console.error(e);
         if (isStale()) return;
         const skel = document.getElementById("hero-skeleton");
-        if (skel) skel.innerHTML = `<div class="empty"><div class="empty-text">Failed to load hero</div></div>`;
+        if (skel)
+          skel.innerHTML = `<div class="empty"><div class="empty-text">Failed to load hero</div></div>`;
       });
 
     getTrending(1, 20)
@@ -847,7 +851,10 @@ async function renderHome() {
             const data = await getPopular(popPage, 20);
             if (isStale()) return;
             if (data) {
-              grid.insertAdjacentHTML("beforeend", data.media.map(cardHtml).join(""));
+              grid.insertAdjacentHTML(
+                "beforeend",
+                data.media.map(cardHtml).join(""),
+              );
               popHasNext = data.pageInfo.hasNextPage;
               popPage++;
             }
@@ -873,11 +880,12 @@ async function renderHome() {
         console.error(e);
         if (isStale()) return;
         const grid = document.getElementById("popular-grid");
-        if (grid) grid.innerHTML = `<div class="empty-text">Failed to load</div>`;
+        if (grid)
+          grid.innerHTML = `<div class="empty-text">Failed to load</div>`;
       });
   }
 
-async function renderSearch(params) {
+  async function renderSearch(params) {
     const myToken = navToken;
     function isStale() {
       return myToken !== navToken;
@@ -1005,7 +1013,7 @@ async function renderSearch(params) {
     if (isStale()) return;
     app.innerHTML = html;
   }
-async function renderAnimeDetail(id) {
+  async function renderAnimeDetail(id) {
     const myToken = navToken;
     function isStale() {
       return myToken !== navToken;
@@ -1191,6 +1199,9 @@ async function renderAnimeDetail(id) {
       <div class="detail-synopsis expandable" id="synopsis">${esc(desc)}</div>
     </div>`;
 
+    const EP_CHUNK = 100;
+    let detailNumRanges = 0;
+    let detailInitialRange = 0;
     if (totalKnown > 0) {
       const progressPct = anime.episodes
         ? Math.round((watched / anime.episodes) * 100)
@@ -1226,33 +1237,41 @@ async function renderAnimeDetail(id) {
           </div>`;
         }
       }
-      html += `<div class="episodes-grid">`;
-      for (let i = 1; i <= totalKnown; i++) {
-        const isReleased = i <= airedEps;
-        const isWatched = i <= watched;
-
-        let cls = "ep-btn";
-        let attrs = "";
-        let airLabel = "";
-        let lbl = null;
-
-        if (isReleased) {
-          cls += isWatched ? " ep-btn-watched" : " ep-btn-aired";
-          attrs = `href="/watch/${anime.id}/${i}"`;
+      if (totalKnown > EP_CHUNK) {
+        detailNumRanges = Math.ceil(totalKnown / EP_CHUNK);
+        if (watched > 0) {
+          detailInitialRange = Math.min(
+            Math.floor((watched - 1) / EP_CHUNK),
+            detailNumRanges - 1,
+          );
+          if (detailInitialRange < 0) detailInitialRange = 0;
         } else {
-          cls += " ep-btn-upcoming";
-          lbl = upcomingEpLabel(anime, i);
-          airLabel = lbl.text;
-          if (lbl.today) cls += " ep-btn-today";
+          detailInitialRange = 0;
         }
-
-        if (attrs) {
-          html += `<a ${attrs} class="${cls}" id="ep-${i}">${i}${airLabel ? `<div class="ep-air-date${lbl && lbl.today ? " today-date" : " upcoming-date"}">${esc(airLabel)}</div>` : ""}</a>`;
-        } else {
-          html += `<span class="${cls}" id="ep-${i}">${i}${airLabel ? `<div class="ep-air-date upcoming-date">${esc(airLabel)}</div>` : ""}</span>`;
+        const resumeEp = watched > 0 && watched < airedEps ? watched + 1 : 0;
+        if (resumeEp > 0) {
+          const resumeRange = Math.floor((resumeEp - 1) / EP_CHUNK);
+          if (resumeRange >= 0 && resumeRange < detailNumRanges) {
+            detailInitialRange = resumeRange;
+          }
         }
+        const detailInitialStart = detailInitialRange * EP_CHUNK + 1;
+        const detailInitialEnd = Math.min(
+          (detailInitialRange + 1) * EP_CHUNK,
+          totalKnown,
+        );
+        html += `<div class="ep-range-selector"><div class="ep-range-dropdown" id="ep-range-dropdown"><button class="ep-range-dropdown-trigger" id="ep-range-dropdown-trigger" aria-haspopup="listbox" aria-expanded="false" type="button"><span class="ep-range-dropdown-value">${detailInitialStart}-${detailInitialEnd}</span><svg class="ep-range-dropdown-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></button><div class="ep-range-dropdown-menu" id="ep-range-dropdown-menu" role="listbox">`;
+        for (let r = 0; r < detailNumRanges; r++) {
+          const start = r * EP_CHUNK + 1;
+          const end = Math.min((r + 1) * EP_CHUNK, totalKnown);
+          const active =
+            r === detailInitialRange ? " ep-range-dropdown-item-active" : "";
+          const selected = r === detailInitialRange ? "true" : "false";
+          html += `<button class="ep-range-dropdown-item${active}" data-range="${r}" role="option" aria-selected="${selected}" type="button">${start}-${end}</button>`;
+        }
+        html += `</div></div></div>`;
       }
-      html += `</div></div>`;
+      html += `<div class="episodes-grid" id="episodes-grid"></div></div>`;
     }
 
     if (relations.length > 0) {
@@ -1295,6 +1314,109 @@ async function renderAnimeDetail(id) {
         currentInList = true;
       }
     });
+
+    if (totalKnown > 0) {
+      const epGrid = document.getElementById("episodes-grid");
+      const epDropdown = document.getElementById("ep-range-dropdown");
+      const epTrigger = document.getElementById("ep-range-dropdown-trigger");
+      const epMenu = document.getElementById("ep-range-dropdown-menu");
+      const epTriggerValue = epTrigger
+        ? epTrigger.querySelector(".ep-range-dropdown-value")
+        : null;
+      function renderDetailEpRange(rangeIdx) {
+        if (!epGrid) return;
+        let start, end;
+        if (totalKnown > EP_CHUNK) {
+          start = rangeIdx * EP_CHUNK + 1;
+          end = Math.min((rangeIdx + 1) * EP_CHUNK, totalKnown);
+        } else {
+          start = 1;
+          end = totalKnown;
+        }
+        let gridHtml = "";
+        for (let i = start; i <= end; i++) {
+          const isReleased = i <= airedEps;
+          const isWatched = i <= watched;
+          let cls = "ep-btn";
+          let attrs = "";
+          let airLabel = "";
+          let lbl = null;
+          if (isReleased) {
+            cls += isWatched ? " ep-btn-watched" : " ep-btn-aired";
+            attrs = `href="/watch/${anime.id}/${i}"`;
+          } else {
+            cls += " ep-btn-upcoming";
+            lbl = upcomingEpLabel(anime, i);
+            airLabel = lbl.text;
+            if (lbl.today) cls += " ep-btn-today";
+          }
+          if (attrs) {
+            gridHtml += `<a ${attrs} class="${cls}" id="ep-${i}">${i}${airLabel ? `<div class="ep-air-date${lbl && lbl.today ? " today-date" : " upcoming-date"}">${esc(airLabel)}</div>` : ""}</a>`;
+          } else {
+            gridHtml += `<span class="${cls}" id="ep-${i}">${i}${airLabel ? `<div class="ep-air-date upcoming-date">${esc(airLabel)}</div>` : ""}</span>`;
+          }
+        }
+        epGrid.innerHTML = gridHtml;
+        if (epTriggerValue) {
+          epTriggerValue.textContent = `${start}-${end}`;
+        }
+        if (epMenu) {
+          epMenu.querySelectorAll(".ep-range-dropdown-item").forEach((it) => {
+            const isActive = parseInt(it.dataset.range) === rangeIdx;
+            it.classList.toggle("ep-range-dropdown-item-active", isActive);
+            it.setAttribute("aria-selected", isActive ? "true" : "false");
+          });
+        }
+      }
+      function closeDetailDropdown() {
+        if (epDropdown && epTrigger && epMenu) {
+          epDropdown.classList.remove("open");
+          epTrigger.setAttribute("aria-expanded", "false");
+          epMenu.classList.remove("open");
+        }
+      }
+      function toggleDetailDropdown() {
+        if (!epDropdown || !epTrigger || !epMenu) return;
+        const isOpen = epMenu.classList.contains("open");
+        if (isOpen) closeDetailDropdown();
+        else {
+          epDropdown.classList.add("open");
+          epTrigger.setAttribute("aria-expanded", "true");
+          epMenu.classList.add("open");
+        }
+      }
+      if (epTrigger && epMenu) {
+        epTrigger.addEventListener("click", (e) => {
+          e.stopPropagation();
+          toggleDetailDropdown();
+        });
+        epMenu.querySelectorAll(".ep-range-dropdown-item").forEach((item) => {
+          item.addEventListener("click", () => {
+            const r = parseInt(item.dataset.range);
+            renderDetailEpRange(r);
+            closeDetailDropdown();
+          });
+        });
+        const onDocClickDetail = (e) => {
+          if (epDropdown && !epDropdown.contains(e.target))
+            closeDetailDropdown();
+        };
+        const onEscDetail = (e) => {
+          if (e.key === "Escape") closeDetailDropdown();
+        };
+        document.addEventListener("click", onDocClickDetail);
+        document.addEventListener("keydown", onEscDetail);
+        const prevDestroy = currentPage.destroy;
+        currentPage.destroy = () => {
+          if (prevDestroy) prevDestroy();
+          document.removeEventListener("click", onDocClickDetail);
+          document.removeEventListener("keydown", onEscDetail);
+        };
+        renderDetailEpRange(detailInitialRange);
+      } else if (epGrid) {
+        renderDetailEpRange(0);
+      }
+    }
   }
   function statusBadge(s) {
     const map = {
@@ -1321,7 +1443,7 @@ async function renderAnimeDetail(id) {
     return `${mins}m ${secs}s`;
   }
 
-async function renderWatch(id, episode) {
+  async function renderWatch(id, episode) {
     const myToken = navToken;
     function isStale() {
       return myToken !== navToken;
@@ -1415,26 +1537,38 @@ async function renderWatch(id, episode) {
       </div>`;
     }
 
+    const WATCH_CHUNK = 100;
     let episodeGridHtml = "";
+    let watchNumRanges = 0;
+    let watchInitialRange = 0;
+    const watchedForWatchPage = totalEps > 0 ? getProgress(anime.id) : 0;
     if (totalEps > 0) {
-      const watched = getProgress(anime.id);
-      episodeGridHtml = `<div class="episodes-section"><h3 class="episodes-title" style="margin-bottom:12px">Episodes</h3><div class="episodes-grid">`;
-      for (let i = 1; i <= totalEps; i++) {
-        const isReleased = i <= airedEps;
-        const isWatched = i <= watched;
-        let cls = "ep-btn";
-        if (i === episode) cls += " ep-btn-current";
-        if (isReleased) {
-          cls += isWatched ? " ep-btn-watched" : " ep-btn-aired";
-          episodeGridHtml += `<a href="/watch/${anime.id}/${i}" class="${cls}">${i}</a>`;
-        } else {
-          cls += " ep-btn-upcoming";
-          const lbl = upcomingEpLabel(anime, i);
-          if (lbl.today) cls += " ep-btn-today";
-          episodeGridHtml += `<span class="${cls}" title="Not yet aired">${i}${lbl.text ? `<div class="ep-air-date upcoming-date">${esc(lbl.text)}</div>` : ""}</span>`;
+      if (totalEps > WATCH_CHUNK) {
+        watchNumRanges = Math.ceil(totalEps / WATCH_CHUNK);
+        watchInitialRange = Math.min(
+          Math.floor((episode - 1) / WATCH_CHUNK),
+          watchNumRanges - 1,
+        );
+        if (watchInitialRange < 0) watchInitialRange = 0;
+        const watchInitialStart = watchInitialRange * WATCH_CHUNK + 1;
+        const watchInitialEnd = Math.min(
+          (watchInitialRange + 1) * WATCH_CHUNK,
+          totalEps,
+        );
+        let rangeHtml = `<div class="ep-range-selector"><div class="ep-range-dropdown" id="watch-ep-range-dropdown"><button class="ep-range-dropdown-trigger" id="watch-ep-range-dropdown-trigger" aria-haspopup="listbox" aria-expanded="false" type="button"><span class="ep-range-dropdown-value">${watchInitialStart}-${watchInitialEnd}</span><svg class="ep-range-dropdown-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></button><div class="ep-range-dropdown-menu" id="watch-ep-range-dropdown-menu" role="listbox">`;
+        for (let r = 0; r < watchNumRanges; r++) {
+          const start = r * WATCH_CHUNK + 1;
+          const end = Math.min((r + 1) * WATCH_CHUNK, totalEps);
+          const active =
+            r === watchInitialRange ? " ep-range-dropdown-item-active" : "";
+          const selected = r === watchInitialRange ? "true" : "false";
+          rangeHtml += `<button class="ep-range-dropdown-item${active}" data-range="${r}" role="option" aria-selected="${selected}" type="button">${start}-${end}</button>`;
         }
+        rangeHtml += `</div></div></div>`;
+        episodeGridHtml = `<div class="episodes-section"><h3 class="episodes-title" style="margin-bottom:12px">Episodes</h3>${rangeHtml}<div class="episodes-grid" id="watch-episodes-grid"></div></div>`;
+      } else {
+        episodeGridHtml = `<div class="episodes-section"><h3 class="episodes-title" style="margin-bottom:12px">Episodes</h3><div class="episodes-grid" id="watch-episodes-grid"></div></div>`;
       }
-      episodeGridHtml += `</div></div>`;
     }
 
     function playerAreaHtml() {
@@ -1668,6 +1802,107 @@ async function renderWatch(id, episode) {
     if (isStale()) return;
     app.innerHTML = html;
 
+    let watchDropdownCleanup = null;
+    if (totalEps > 0) {
+      const watchGrid = document.getElementById("watch-episodes-grid");
+      const watchDropdown = document.getElementById("watch-ep-range-dropdown");
+      const watchTrigger = document.getElementById(
+        "watch-ep-range-dropdown-trigger",
+      );
+      const watchMenu = document.getElementById("watch-ep-range-dropdown-menu");
+      const watchTriggerValue = watchTrigger
+        ? watchTrigger.querySelector(".ep-range-dropdown-value")
+        : null;
+      function renderWatchEpRange(rangeIdx) {
+        if (!watchGrid) return;
+        let start, end;
+        if (totalEps > WATCH_CHUNK) {
+          start = rangeIdx * WATCH_CHUNK + 1;
+          end = Math.min((rangeIdx + 1) * WATCH_CHUNK, totalEps);
+        } else {
+          start = 1;
+          end = totalEps;
+        }
+        let gridHtml = "";
+        for (let i = start; i <= end; i++) {
+          const isReleased = i <= airedEps;
+          const isWatched = i <= watchedForWatchPage;
+          let cls = "ep-btn";
+          if (i === episode) cls += " ep-btn-current";
+          if (isReleased) {
+            cls += isWatched ? " ep-btn-watched" : " ep-btn-aired";
+            gridHtml += `<a href="/watch/${anime.id}/${i}" class="${cls}">${i}</a>`;
+          } else {
+            cls += " ep-btn-upcoming";
+            const lbl = upcomingEpLabel(anime, i);
+            if (lbl.today) cls += " ep-btn-today";
+            gridHtml += `<span class="${cls}" title="Not yet aired">${i}${lbl.text ? `<div class="ep-air-date upcoming-date">${esc(lbl.text)}</div>` : ""}</span>`;
+          }
+        }
+        watchGrid.innerHTML = gridHtml;
+        if (watchTriggerValue) {
+          watchTriggerValue.textContent = `${start}-${end}`;
+        }
+        if (watchMenu) {
+          watchMenu
+            .querySelectorAll(".ep-range-dropdown-item")
+            .forEach((it) => {
+              const isActive = parseInt(it.dataset.range) === rangeIdx;
+              it.classList.toggle("ep-range-dropdown-item-active", isActive);
+              it.setAttribute("aria-selected", isActive ? "true" : "false");
+            });
+        }
+      }
+      function closeWatchDropdown() {
+        if (watchDropdown && watchTrigger && watchMenu) {
+          watchDropdown.classList.remove("open");
+          watchTrigger.setAttribute("aria-expanded", "false");
+          watchMenu.classList.remove("open");
+        }
+      }
+      function toggleWatchDropdown() {
+        if (!watchDropdown || !watchTrigger || !watchMenu) return;
+        const isOpen = watchMenu.classList.contains("open");
+        if (isOpen) closeWatchDropdown();
+        else {
+          watchDropdown.classList.add("open");
+          watchTrigger.setAttribute("aria-expanded", "true");
+          watchMenu.classList.add("open");
+        }
+      }
+      if (watchTrigger && watchMenu) {
+        watchTrigger.addEventListener("click", (e) => {
+          e.stopPropagation();
+          toggleWatchDropdown();
+        });
+        watchMenu
+          .querySelectorAll(".ep-range-dropdown-item")
+          .forEach((item) => {
+            item.addEventListener("click", () => {
+              const r = parseInt(item.dataset.range);
+              renderWatchEpRange(r);
+              closeWatchDropdown();
+            });
+          });
+        const onDocClickWatch = (e) => {
+          if (watchDropdown && !watchDropdown.contains(e.target))
+            closeWatchDropdown();
+        };
+        const onEscWatch = (e) => {
+          if (e.key === "Escape") closeWatchDropdown();
+        };
+        document.addEventListener("click", onDocClickWatch);
+        document.addEventListener("keydown", onEscWatch);
+        watchDropdownCleanup = () => {
+          document.removeEventListener("click", onDocClickWatch);
+          document.removeEventListener("keydown", onEscWatch);
+        };
+        renderWatchEpRange(watchInitialRange);
+      } else if (watchGrid) {
+        renderWatchEpRange(0);
+      }
+    }
+
     renderPlayer();
 
     const showCountdown = nextEp && nextEpDate;
@@ -1691,10 +1926,11 @@ async function renderWatch(id, episode) {
     currentPage.destroy = () => {
       if (timer) clearInterval(timer);
       window.removeEventListener("message", onPlayerMessage);
+      if (watchDropdownCleanup) watchDropdownCleanup();
     };
     discoverSources();
   }
-function renderWatchlist() {
+  function renderWatchlist() {
     const myToken = navToken;
     function isStale() {
       return myToken !== navToken;
@@ -1864,8 +2100,8 @@ function renderWatchlist() {
 
     setTimeout(() => {
       if (isStale()) return;
-    const discordIcon = `<svg width="20" height="20" viewBox="0 0 24 24" fill="#fff" aria-hidden="true"><path d="M20.317 4.37a19.79 19.79 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028c.462-.63.874-1.295 1.226-1.994a.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128c.126-.094.252-.192.372-.291a.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z"/></svg>`;
-    const githubIcon = `<svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/></svg>`;
+      const discordIcon = `<svg width="20" height="20" viewBox="0 0 24 24" fill="#fff" aria-hidden="true"><path d="M20.317 4.37a19.79 19.79 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028c.462-.63.874-1.295 1.226-1.994a.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128c.126-.094.252-.192.372-.291a.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z"/></svg>`;
+      const githubIcon = `<svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/></svg>`;
 
       let html = `<div class="about">`;
       html += `<h1 class="section-title" style="margin-bottom:8px">About AniCult</h1>`;
@@ -2223,7 +2459,8 @@ function renderWatchlist() {
       if (!href) return;
       link.classList.remove("active");
       if (href === "/") {
-        if (currentPath === "/" || currentPath === "") link.classList.add("active");
+        if (currentPath === "/" || currentPath === "")
+          link.classList.add("active");
       } else if (href.startsWith("/search")) {
         const linkUrl = new URL(href, location.origin);
         const curUrl = new URL(location.href);
