@@ -114,6 +114,7 @@
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
+      signal: AbortSignal.timeout(15000),
     });
     if (!res.ok) {
       const text = await res.text().catch(() => "");
@@ -126,7 +127,9 @@
   }
 
   async function fetchAnikotoSeries(id) {
-    const res = await fetch(`${ANIKOTO_API_BASE}/series/${id}`);
+    const res = await fetch(`${ANIKOTO_API_BASE}/series/${id}`, {
+      signal: AbortSignal.timeout(15000),
+    });
     if (!res.ok) throw new Error(`Anikoto API error: ${res.status}`);
     return res.json();
   }
@@ -134,6 +137,7 @@
   async function fetchAnikotoRecent(page = 1, perPage = 20) {
     const res = await fetch(
       `${ANIKOTO_API_BASE}/recent-anime?page=${page}&per_page=${perPage}`,
+      { signal: AbortSignal.timeout(15000) },
     );
     if (!res.ok) throw new Error(`Anikoto API error: ${res.status}`);
     return res.json();
