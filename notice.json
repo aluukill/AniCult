@@ -1,11 +1,31 @@
 {
-  "version": "4",
-  "title": "What's new in AniCult ✨",
+  "version": "5",
+  "title": "We Recommend Brave Browser 🦁",
   "items": [
-    "New video source added — MegaPlay gives you more shows and better reliability",
-    "Easily switch between video sources in the player if one doesn't work",
-    "Episodes now play the next one automatically when finished",
-    "If a show doesn't load, you can let us know with one tap and we'll fix it"
+    "For the best AniCult experience, we recommend using Brave Browser — some video providers may show pop-up ads on other browsers.",
+    "Brave blocks ads & trackers automatically, giving you a clean, faster and uninterrupted streaming experience.",
+    "You can continue with any browser, but Brave ensures zero ad interruptions on AniCult."
   ],
-  "buttonLabel": "Got it"
+  "brave": {
+    "logo": "/brave-icon.png",
+    "message": "Download Brave for free — available on all your devices:",
+    "links": [
+      {
+        "label": "Windows",
+        "url": "https://brave.com/download/",
+        "store": "windows"
+      },
+      {
+        "label": "Google Play",
+        "url": "https://play.google.com/store/apps/details?id=com.brave.browser",
+        "store": "play"
+      },
+      {
+        "label": "App Store",
+        "url": "https://apps.apple.com/app/brave-private-web-browser/id1052879175",
+        "store": "apple"
+      }
+    ]
+  },
+  "buttonLabel": "Got it!"
 }

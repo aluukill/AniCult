@@ -2177,6 +2177,48 @@
     }
     if (storageGet(NOTICE_SEEN_KEY) === notice.version) return;
 
+    let braveHtml = "";
+    if (notice.brave && Array.isArray(notice.brave.links) && notice.brave.links.length) {
+      const logoSrc = esc(notice.brave.logo || "/brave-icon.png");
+      const braveMsg = esc(
+        notice.brave.message || "Download Brave for free — available on all devices:",
+      );
+      const braveLinksHtml = notice.brave.links
+        .map((lnk) => {
+          const url = esc(lnk.url || "#");
+          const label = esc(lnk.label || "Download");
+          const store = lnk.store || "";
+          let icon = "";
+          let cls = "";
+          if (store === "windows") {
+            cls = "brave-link-windows";
+            icon =
+              '<svg width="18" height="18" viewBox="0 0 88 88" fill="currentColor" aria-hidden="true"><path d="M0 12.402l35.687-4.86.016 34.423-35.67.203zm35.67 33.529l.028 34.453L.028 75.48.026 45.7zm4.326-39.025L87.314 0v41.527l-47.318.376zm47.329 39.349l-.011 41.34-47.318-6.678-.066-34.739z"/></svg>';
+          } else if (store === "play") {
+            cls = "brave-link-play";
+            // Colorful Google Play triangle — 4-path official icon (blue/green/yellow/red)
+            icon =
+              '<svg width="18" height="18" viewBox="30 336.7 120.9 129.2" aria-hidden="true"><path fill="#FFD400" d="M119.2,421.2c15.3-8.4,27-14.8,28-15.3c3.2-1.7,6.5-6.2,0-9.7c-2.1-1.1-13.4-7.3-28-15.3l-20.1,20.2L119.2,421.2z"/><path fill="#FF3333" d="M99.1,401.1l-64.2,64.7c1.5,0.2,3.2-0.2,5.2-1.3c4.2-2.3,48.8-26.7,79.1-43.3L99.1,401.1z"/><path fill="#48FF48" d="M99.1,401.1l20.1-20.2c0,0-74.6-40.7-79.1-43.1c-1.7-1-3.6-1.3-5.3-1L99.1,401.1z"/><path fill="#3BCCFF" d="M99.1,401.1l-64.3-64.3c-2.6,0.6-4.8,2.9-4.8,7.6c0,7.5,0,107.5,0,113.8c0,4.3,1.7,7.4,4.9,7.7L99.1,401.1z"/></svg>';
+          } else if (store === "apple") {
+            cls = "brave-link-apple";
+            icon =
+              '<svg width="16" height="19" viewBox="0 0 814 1000" fill="currentColor" aria-hidden="true"><path d="M788.1 340.9c-5.8 4.5-108.2 62.2-108.2 190.5 0 148.4 130.3 200.9 134.2 202.2-.6 3.2-20.7 71.9-68.7 141.9-42.8 61.6-87.5 123.1-155.5 123.1s-85.5-39.5-164-39.5c-76.5 0-103.7 40.8-165.9 40.8s-105.6-57-155.5-127C46.7 790.7 0 663 0 541.8c0-194.4 126.4-297.5 250.8-297.5 66.1 0 121.2 43.4 162.7 43.4 39.5 0 101.1-46 176.3-46 28.5 0 130.9 2.6 198.3 99.2zm-234-181.5c31.1-36.9 53.1-88.1 53.1-139.3 0-7.1-.6-14.3-1.9-20.1-50.6 1.9-110.8 33.7-147.1 75.8-28.5 32.4-55.1 83.6-55.1 135.5 0 7.8 1.3 15.6 1.9 18.1 3.2.6 8.4 1.3 13.6 1.3 45.4 0 102.5-30.4 135.5-71.3z"/></svg>';
+          }
+          return `<a href="${url}" target="_blank" rel="noopener noreferrer" class="brave-link ${cls}">${icon}${label}</a>`;
+        })
+        .join("");
+      braveHtml = `<div class="brave-notice">
+      <div class="brave-notice-header">
+        <img src="${logoSrc}" alt="Brave Browser logo" class="brave-logo" loading="lazy" onerror="this.onerror=null;this.src='https://upload.wikimedia.org/wikipedia/commons/5/51/Brave_icon_lionface.png'">
+        <div>
+          <div class="brave-notice-title">Get <span>Brave Browser</span></div>
+          <div class="brave-notice-desc">${braveMsg}</div>
+        </div>
+      </div>
+      <div class="brave-links">${braveLinksHtml}</div>
+    </div>`;
+    }
+
     const overlay = document.createElement("div");
     overlay.className = "notice-overlay";
     overlay.setAttribute("role", "dialog");
@@ -2189,6 +2231,7 @@
       <ul class="notice-list">${notice.items
         .map((item) => `<li>${esc(item)}</li>`)
         .join("")}</ul>
+      ${braveHtml}
       <div class="notice-actions">
         <button class="btn btn-primary notice-close" id="notice-close" disabled>${esc(
           notice.buttonLabel || "Got it",

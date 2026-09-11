@@ -2865,6 +2865,217 @@ select:focus {
   margin-top: 20px;
 }
 
+.brave-notice {
+  margin-top: 18px;
+  padding: 18px;
+  background:
+    radial-gradient(
+      ellipse at 85% 10%,
+      rgba(252, 80, 37, 0.14) 0%,
+      transparent 55%
+    ),
+    linear-gradient(
+      135deg,
+      rgba(252, 80, 37, 0.08) 0%,
+      rgba(255, 26, 57, 0.06) 50%,
+      rgba(18, 18, 26, 0.95) 100%
+    );
+  border: 1px solid rgba(255, 84, 48, 0.18);
+  border-radius: 16px;
+  position: relative;
+  overflow: hidden;
+  box-shadow:
+    0 4px 20px rgba(0, 0, 0, 0.25),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+.brave-notice::before {
+  content: "";
+  position: absolute;
+  top: -32px;
+  right: -28px;
+  width: 110px;
+  height: 110px;
+  background: radial-gradient(
+    circle,
+    rgba(252, 80, 37, 0.1) 0%,
+    transparent 68%
+  );
+  pointer-events: none;
+}
+
+.brave-notice-header {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 6px;
+  position: relative;
+}
+
+.brave-logo {
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
+  background: #fff;
+  padding: 6px;
+  object-fit: contain;
+  flex-shrink: 0;
+  box-shadow:
+    0 4px 16px rgba(0, 0, 0, 0.2),
+    0 1px 3px rgba(0, 0, 0, 0.15);
+  border: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.brave-notice-title {
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--text);
+  line-height: 1.15;
+  letter-spacing: -0.2px;
+}
+
+.brave-notice-title span {
+  background: linear-gradient(90deg, #ff4b2b 0%, #ff1a39 45%, #fb542b 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.brave-notice-desc {
+  font-size: 12.8px;
+  color: var(--text-muted);
+  line-height: 1.5;
+  margin-bottom: 14px;
+  margin-top: 4px;
+  position: relative;
+}
+
+.brave-links {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  position: relative;
+}
+
+.brave-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 16px;
+  border-radius: 12px;
+  font-size: 13px;
+  font-weight: 650;
+  text-decoration: none;
+  transition:
+    transform 0.18s cubic-bezier(0.34, 1.56, 0.64, 1),
+    box-shadow 0.2s ease,
+    border-color 0.2s ease,
+    background 0.2s ease,
+    filter 0.2s ease;
+  border: 1px solid transparent;
+  line-height: 1;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.18);
+  letter-spacing: -0.1px;
+  min-width: 0;
+}
+
+.brave-link:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.25);
+  filter: brightness(1.04);
+}
+
+.brave-link:active {
+  transform: translateY(0) scale(0.98);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.brave-link:focus-visible {
+  outline: 2px solid #fb542b;
+  outline-offset: 2px;
+}
+
+/* Windows — Microsoft blue */
+.brave-link-windows {
+  background: #0078d4;
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.12);
+  box-shadow:
+    0 2px 10px rgba(0, 120, 212, 0.3),
+    0 1px 2px rgba(0, 0, 0, 0.15);
+}
+
+.brave-link-windows:hover {
+  background: #0a6dc2;
+  border-color: rgba(255, 255, 255, 0.18);
+  box-shadow:
+    0 8px 22px rgba(0, 120, 212, 0.38),
+    0 1px 2px rgba(0, 0, 0, 0.15);
+  color: #fff;
+}
+
+/* Apple — true black with refined hover */
+.brave-link-apple {
+  background: #000;
+  color: #fff;
+  border-color: #2a2a30;
+  box-shadow:
+    0 2px 10px rgba(0, 0, 0, 0.45),
+    0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+.brave-link-apple:hover {
+  background: #1c1c1e;
+  border-color: #3a3a40;
+  box-shadow:
+    0 8px 22px rgba(0, 0, 0, 0.5),
+    0 1px 2px rgba(0, 0, 0, 0.2);
+  color: #fff;
+}
+
+/* Google Play — light card that lets the colorful icon pop */
+.brave-link-play {
+  background: #ffffff;
+  color: #1f2430;
+  border-color: #e6e8eb;
+  box-shadow:
+    0 2px 10px rgba(0, 0, 0, 0.08),
+    0 1px 3px rgba(0, 0, 0, 0.06);
+}
+
+.brave-link-play:hover {
+  background: #f8fafc;
+  border-color: #d6dae0;
+  color: #111827;
+  box-shadow:
+    0 8px 22px rgba(0, 0, 0, 0.12),
+    0 1px 3px rgba(0, 0, 0, 0.06);
+}
+
+.brave-link svg {
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  display: block;
+}
+
+.brave-link-play svg {
+  width: 18px;
+  height: 18px;
+}
+
+@media (max-width: 480px) {
+  .brave-links {
+    flex-direction: column;
+  }
+  .brave-link {
+    justify-content: center;
+    width: 100%;
+    padding: 12px 16px;
+  }
+}
+
 .skeleton {
   background: var(--bg-hover);
   position: relative;
