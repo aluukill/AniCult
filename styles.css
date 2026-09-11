@@ -1000,6 +1000,33 @@ select:focus {
   border: none;
 }
 
+.player-below-nav {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+
+.autonext-toggle {
+  white-space: nowrap;
+}
+
+.autonext-toggle .autonext-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: var(--text-dim);
+  transition: background var(--transition);
+}
+
+.autonext-toggle.on .autonext-dot {
+  background: #fff;
+  box-shadow: 0 0 6px rgba(255, 255, 255, 0.6);
+}
+
 .watch-countdown {
   display: flex;
   align-items: center;

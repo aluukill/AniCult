@@ -270,6 +270,7 @@
     watchlist: "anicult_watchlist",
     history: "anicult_history",
     progress: "anicult_progress",
+    autonext: "anicult_autonext",
   };
 
   const storageCache = new Map();
@@ -367,6 +368,14 @@
     const p = storageGet(KEYS.progress) || {};
     p[animeId] = Math.max(p[animeId] || 0, episode);
     storageSet(KEYS.progress, p);
+  }
+
+  function getAutoNext() {
+    const v = storageGet(KEYS.autonext);
+    return v == null ? true : v !== false;
+  }
+  function setAutoNext(value) {
+    storageSet(KEYS.autonext, value ? true : false);
   }
 
   const ESCAPE_MAP = {
@@ -1503,7 +1512,8 @@
       error = null,
       embedUrl = "",
       currentLang = "sub",
-      currentProvider = EMBED_PROVIDERS[0].id;
+      currentProvider = EMBED_PROVIDERS[0].id,
+      autoNext = getAutoNext();
 
     function unavailableHtml() {
       if (notYetReleased) {
@@ -1587,6 +1597,15 @@
         html += unavailableHtml();
       }
       html += `</div>`;
+      if (canWatch) {
+        html += `<div class="player-below-nav">`;
+        html += `<button id="autonext-toggle" class="btn btn-sm ${autoNext ? "btn-primary" : "btn-outline"} autonext-toggle${autoNext ? " on" : ""}" aria-pressed="${autoNext ? "true" : "false"}" aria-label="Toggle auto next episode" type="button"><span class="autonext-dot"></span>Auto Next: ${autoNext ? "On" : "Off"}</button>`;
+        if (episode > 1)
+          html += `<a href="/watch/${anime.id}/${episode - 1}" class="btn btn-outline btn-sm" aria-label="Previous episode">${icons.arrowLeft(14)} Prev</a>`;
+        if (episode < airedEps)
+          html += `<a href="/watch/${anime.id}/${episode + 1}" class="btn btn-primary btn-sm" aria-label="Next episode">Next ${icons.arrowRight(14)}</a>`;
+        html += `</div>`;
+      }
 
       if (canWatch && nextEp && nextEpDate) {
         const diff = nextEpDate * 1000 - Date.now();
@@ -1678,6 +1697,22 @@
         });
       });
 
+      const autoNextBtn = region.querySelector("#autonext-toggle");
+      if (autoNextBtn) {
+        autoNextBtn.addEventListener("click", () => {
+          autoNext = !autoNext;
+          setAutoNext(autoNext);
+          autoNextBtn.classList.toggle("btn-primary", autoNext);
+          autoNextBtn.classList.toggle("btn-outline", !autoNext);
+          autoNextBtn.classList.toggle("on", autoNext);
+          autoNextBtn.setAttribute(
+            "aria-pressed",
+            autoNext ? "true" : "false",
+          );
+          autoNextBtn.innerHTML = `<span class="autonext-dot"></span>Auto Next: ${autoNext ? "On" : "Off"}`;
+        });
+      }
+
       const loadBtn = region.querySelector("#load-custom-url");
       if (loadBtn) {
         loadBtn.addEventListener("click", () => {
@@ -1749,7 +1784,7 @@
       const cls = classifyPlayerMessage(d);
       if (!cls || cls.provider !== currentProvider) return;
       if (cls.state === "ended") {
-        if (episode < airedEps) {
+        if (autoNext && episode < airedEps) {
           navigate(`/watch/${anime.id}/${episode + 1}`);
         }
       } else if (cls.state === "error" && !error) {
@@ -1790,12 +1825,7 @@
     html += `<div class="player-info"><div>
       <a href="/anime/${anime.id}" class="player-title">${esc(t)}</a>
       <div class="player-episode">Episode ${episode}</div>
-    </div><div class="player-nav">`;
-    if (episode > 1)
-      html += `<a href="/watch/${anime.id}/${episode - 1}" class="btn btn-outline btn-sm">${icons.arrowLeft()} Prev</a>`;
-    if (episode < airedEps)
-      html += `<a href="/watch/${anime.id}/${episode + 1}" class="btn btn-primary btn-sm">Next ${icons.arrowRight()}</a>`;
-    html += `</div></div>`;
+    </div></div>`;
     html += `<div id="player-dynamic"></div>`;
     html += episodeGridHtml;
     html += `</div>`;
