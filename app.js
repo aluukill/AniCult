@@ -1957,7 +1957,9 @@
 
     setTimeout(() => {
       if (isStale()) return;
-      const list = getWatchlist();
+      const list = getWatchlist()
+        .slice()
+        .sort((a, b) => title(a).localeCompare(title(b), undefined, { sensitivity: "base" }));
       let html = `<h1 class="section-title" style="margin-bottom:24px">My Watchlist</h1>`;
 
       if (list.length === 0) {
