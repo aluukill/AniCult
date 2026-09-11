@@ -96,12 +96,7 @@
     return /^https:\/\/megaplay\.buzz\//.test(url);
   }
 
-  async function requestMegaPlayMapping({
-    idType,
-    externalId,
-    episode,
-    message,
-  }) {
+  async function requestMegaPlayMapping({ idType, externalId, episode, message }) {
     const payload = {
       id_type: idType,
       external_id: Number(externalId),
@@ -120,8 +115,7 @@
       throw new Error(text || `Mapping request failed: ${res.status}`);
     }
     const data = await res.json().catch(() => ({}));
-    if (data && data.ok === false)
-      throw new Error(data.message || "Mapping request failed");
+    if (data && data.ok === false) throw new Error(data.message || "Mapping request failed");
     return data;
   }
 
@@ -132,9 +126,7 @@
   }
 
   async function fetchAnikotoRecent(page = 1, perPage = 20) {
-    const res = await fetch(
-      `${ANIKOTO_API_BASE}/recent-anime?page=${page}&per_page=${perPage}`,
-    );
+    const res = await fetch(`${ANIKOTO_API_BASE}/recent-anime?page=${page}&per_page=${perPage}`);
     if (!res.ok) throw new Error(`Anikoto API error: ${res.status}`);
     return res.json();
   }
@@ -142,31 +134,23 @@
   function classifyPlayerMessage(d) {
     if (!d || typeof d !== "object") return null;
     if (d.channel === "megacloud") {
-      if (d.event === "complete")
-        return { provider: "megaplay", state: "ended" };
+      if (d.event === "complete") return { provider: "megaplay", state: "ended" };
       if (d.event === "time") return { provider: "megaplay", state: "playing" };
-      if (d.event === "error")
-        return { provider: "megaplay", state: "error", message: d.message };
+      if (d.event === "error") return { provider: "megaplay", state: "error", message: d.message };
       return { provider: "megaplay", state: "ignored" };
     }
     if (d.type === "watching-log") {
       return { provider: "megavid", state: "playing" };
     }
     if (d.channel === "kisskh") {
-      if (d.event === "complete")
-        return { provider: "megavid", state: "ended" };
+      if (d.event === "complete") return { provider: "megavid", state: "ended" };
       if (d.event === "time") return { provider: "megavid", state: "playing" };
-      if (
-        d.event === "error" ||
-        d.event === "unavailable" ||
-        d.event === "no_source"
-      )
+      if (d.event === "error" || d.event === "unavailable" || d.event === "no_source")
         return { provider: "megavid", state: "error", message: d.message };
       return { provider: "megavid", state: "ignored" };
     }
     if (typeof d.type === "string" && d.type.indexOf("aniko:") === 0) {
-      if (d.type === "aniko:ended")
-        return { provider: "anixo", state: "ended" };
+      if (d.type === "aniko:ended") return { provider: "anixo", state: "ended" };
       if (d.type === "aniko:ready") {
         if (d.streams > 0) return { provider: "anixo", state: "playing" };
         return {
@@ -175,11 +159,7 @@
           message: "No video sources available.",
         };
       }
-      if (
-        d.type === "aniko:play" ||
-        d.type === "aniko:pause" ||
-        d.type === "aniko:timeupdate"
-      )
+      if (d.type === "aniko:play" || d.type === "aniko:pause" || d.type === "aniko:timeupdate")
         return { provider: "anixo", state: "playing" };
       if (d.type.indexOf("aniko:error") === 0)
         return { provider: "anixo", state: "error", message: d.message };
@@ -204,12 +184,7 @@
     return json.data;
   }
 
-  async function browseAnime(
-    page = 1,
-    perPage = 20,
-    sort = "TRENDING_DESC",
-    format = null,
-  ) {
+  async function browseAnime(page = 1, perPage = 20, sort = "TRENDING_DESC", format = null) {
     const q = `query($page:Int,$perPage:Int,$sort:[MediaSort],$format:MediaFormat){Page(page:$page,perPage:$perPage){pageInfo{total currentPage lastPage hasNextPage}media(type:ANIME,sort:$sort,format:$format){${MEDIA_FIELDS_SMALL}}}}`;
     const variables = { page, perPage, sort: [sort] };
     if (format) variables.format = format;
@@ -255,8 +230,7 @@
     const q = `query($id:Int){Media(id:$id,type:ANIME){${MEDIA_FIELDS}} Page(perPage:1){airingSchedules(mediaId:$id,notYetAired:false,sort:TIME_DESC){episode}}}`;
     const data = await gql(q, { id: parseInt(id) });
     const media = data.Media;
-    const latestAired =
-      data.Page && data.Page.airingSchedules && data.Page.airingSchedules[0];
+    const latestAired = data.Page && data.Page.airingSchedules && data.Page.airingSchedules[0];
     if (latestAired) media.latestAired = latestAired.episode;
     return media;
   }
@@ -338,8 +312,7 @@
     return storageGet(KEYS.history) || [];
   }
   function addToHistory(entry) {
-    if (!entry.episode || isNaN(entry.episode) || entry.episode <= 0)
-      return getHistory();
+    if (!entry.episode || isNaN(entry.episode) || entry.episode <= 0) return getHistory();
     const history = getHistory();
     const filtered = history.filter(
       (h) => !(h.animeId === entry.animeId && h.episode === entry.episode),
@@ -435,15 +408,13 @@
 
   function upcomingEpLabel(anime, i) {
     const nextEp = anime.nextAiringEpisode && anime.nextAiringEpisode.episode;
-    const nextEpDate =
-      anime.nextAiringEpisode && anime.nextAiringEpisode.airingAt;
+    const nextEpDate = anime.nextAiringEpisode && anime.nextAiringEpisode.airingAt;
     if (nextEp === i && nextEpDate) {
       const diff = nextEpDate * 1000 - Date.now();
       if (diff > 0) {
         const days = Math.floor(diff / 86400000);
         const hours = Math.floor((diff % 86400000) / 3600000);
-        if (days < 1)
-          return { text: hours > 0 ? `${hours}h` : "<1h", today: true };
+        if (days < 1) return { text: hours > 0 ? `${hours}h` : "<1h", today: true };
         return { text: `${days}d`, today: false };
       }
     }
@@ -451,10 +422,8 @@
   }
 
   function epText(anime) {
-    if (anime.nextAiringEpisode)
-      return "Ep " + (anime.nextAiringEpisode.episode - 1);
-    if (anime.status === "FINISHED")
-      return anime.episodes ? anime.episodes + " eps" : null;
+    if (anime.nextAiringEpisode) return "Ep " + (anime.nextAiringEpisode.episode - 1);
+    if (anime.status === "FINISHED") return anime.episodes ? anime.episodes + " eps" : null;
     if (anime.status === "RELEASING") return "Airing";
     if (anime.status === "HIATUS") return "On Hiatus";
     if (anime.status === "NOT_YET_RELEASED") return "Unreleased";
@@ -517,8 +486,7 @@
     try {
       if (path === "/" || path === "") await renderHome();
       else if (path === "/search") await renderSearch(params);
-      else if (path.startsWith("/anime/"))
-        await renderAnimeDetail(path.split("/")[2]);
+      else if (path.startsWith("/anime/")) await renderAnimeDetail(path.split("/")[2]);
       else if (path.startsWith("/watch/")) {
         const parts = path.split("/");
         await renderWatch(parts[2], parseInt(parts[3]) || 1);
@@ -608,8 +576,7 @@
 
     currentPage.destroy = () => {
       stopHero();
-      if (onHeroVisibility)
-        document.removeEventListener("visibilitychange", onHeroVisibility);
+      if (onHeroVisibility) document.removeEventListener("visibilitychange", onHeroVisibility);
       if (popularObserver) popularObserver.disconnect();
     };
 
@@ -737,9 +704,6 @@
             startHero();
           }),
         );
-        // Hover pause disabled to ensure autoplay works without interaction; re-enable with delay if needed
-        // heroEl.addEventListener("mouseenter", stopHero);
-        // heroEl.addEventListener("mouseleave", startHero);
 
         let touchStartX = null;
         heroEl.addEventListener(
@@ -768,13 +732,11 @@
         );
         startHero();
         setTimeout(() => {
-          if (!heroTimer && !document.hidden && heroEl && heroCount > 1)
-            startHero();
+          if (!heroTimer && !document.hidden && heroEl && heroCount > 1) startHero();
         }, 100);
       }
 
-      if (onHeroVisibility)
-        document.removeEventListener("visibilitychange", onHeroVisibility);
+      if (onHeroVisibility) document.removeEventListener("visibilitychange", onHeroVisibility);
       onHeroVisibility = () => {
         if (document.hidden) stopHero();
         else if (heroEl && heroCount > 1) startHero();
@@ -860,10 +822,7 @@
             const data = await getPopular(popPage, 20);
             if (isStale()) return;
             if (data) {
-              grid.insertAdjacentHTML(
-                "beforeend",
-                data.media.map(cardHtml).join(""),
-              );
+              grid.insertAdjacentHTML("beforeend", data.media.map(cardHtml).join(""));
               popHasNext = data.pageInfo.hasNextPage;
               popPage++;
             }
@@ -889,8 +848,7 @@
         console.error(e);
         if (isStale()) return;
         const grid = document.getElementById("popular-grid");
-        if (grid)
-          grid.innerHTML = `<div class="empty-text">Failed to load</div>`;
+        if (grid) grid.innerHTML = `<div class="empty-text">Failed to load</div>`;
       });
   }
 
@@ -992,25 +950,15 @@
     if (result.media.length === 0) {
       html += `<div class="empty"><div class="empty-title">No results found</div><div class="empty-text">Try a different search term or filter</div></div>`;
     } else {
-      html += `<div class="grid grid-wide">${result.media
-        .map(cardHtml)
-        .join("")}</div>`;
+      html += `<div class="grid grid-wide">${result.media.map(cardHtml).join("")}</div>`;
     }
 
     if (result.pageInfo) {
       html += `<div class="pagination">`;
       if (page > 1)
         html += `<a href="${buildUrl({ page: String(page - 1) })}" class="page-btn">Previous</a>`;
-      Array.from(
-        { length: Math.min(result.pageInfo.lastPage || 1, 10) },
-        (_, i) => i + 1,
-      )
-        .filter(
-          (p) =>
-            p === 1 ||
-            p === (result.pageInfo.lastPage || 1) ||
-            Math.abs(p - page) <= 2,
-        )
+      Array.from({ length: Math.min(result.pageInfo.lastPage || 1, 10) }, (_, i) => i + 1)
+        .filter((p) => p === 1 || p === (result.pageInfo.lastPage || 1) || Math.abs(p - page) <= 2)
         .forEach((p) => {
           html += `<a href="${buildUrl({ page: String(p) })}" class="page-btn ${p === page ? "page-btn-active" : ""}">${p}</a>`;
         });
@@ -1102,8 +1050,7 @@
     const t = title(anime);
     const engT = anime.title.english;
     const nativeT = anime.title.native;
-    const altT =
-      engT && anime.title.romaji !== engT ? anime.title.romaji : nativeT || "";
+    const altT = engT && anime.title.romaji !== engT ? anime.title.romaji : nativeT || "";
     const img = cover(anime);
     const banner = anime.bannerImage || img;
     const nextEp = anime.nextAiringEpisode?.episode || null;
@@ -1179,8 +1126,7 @@
       {
         label: "Episodes",
         value: isAiring
-          ? (airedEps > 0 ? String(airedEps) : "—") +
-            (anime.episodes ? " / " + anime.episodes : "")
+          ? (airedEps > 0 ? String(airedEps) : "—") + (anime.episodes ? " / " + anime.episodes : "")
           : anime.episodes
             ? String(anime.episodes)
             : airedEps > 0
@@ -1193,9 +1139,7 @@
       },
       {
         label: "Season",
-        value: anime.season
-          ? anime.season + " " + (anime.seasonYear || "")
-          : "—",
+        value: anime.season ? anime.season + " " + (anime.seasonYear || "") : "—",
       },
       { label: "Studio", value: esc(studio) },
     ];
@@ -1212,9 +1156,7 @@
     let detailNumRanges = 0;
     let detailInitialRange = 0;
     if (totalKnown > 0) {
-      const progressPct = anime.episodes
-        ? Math.round((watched / anime.episodes) * 100)
-        : 0;
+      const progressPct = anime.episodes ? Math.round((watched / anime.episodes) * 100) : 0;
       html += `<div class="detail-section"><div class="detail-section-title">Episodes</div>`;
       html += `<div class="ep-progress">
         <span class="ep-progress-text">${watched} ${isAiring && airedEps > 0 ? "of " + airedEps + " released" : anime.episodes ? "of " + anime.episodes : ""} watched</span>
@@ -1227,16 +1169,12 @@
           const days = Math.floor(diff / 86400000);
           const hours = Math.floor((diff % 86400000) / 3600000);
           const mins = Math.floor((diff % 3600000) / 60000);
-          const countdown =
-            days > 0 ? `${days}d ${hours}h ${mins}m` : `${hours}h ${mins}m`;
-          const dateStr = new Date(nextEpDate * 1000).toLocaleDateString(
-            undefined,
-            {
-              weekday: "short",
-              month: "short",
-              day: "numeric",
-            },
-          );
+          const countdown = days > 0 ? `${days}d ${hours}h ${mins}m` : `${hours}h ${mins}m`;
+          const dateStr = new Date(nextEpDate * 1000).toLocaleDateString(undefined, {
+            weekday: "short",
+            month: "short",
+            day: "numeric",
+          });
           html += `<div class="next-ep-banner">
             <div class="next-ep-info">
               <div class="next-ep-label">${icons.clock(12)} Next Episode</div>
@@ -1249,10 +1187,7 @@
       if (totalKnown > EP_CHUNK) {
         detailNumRanges = Math.ceil(totalKnown / EP_CHUNK);
         if (watched > 0) {
-          detailInitialRange = Math.min(
-            Math.floor((watched - 1) / EP_CHUNK),
-            detailNumRanges - 1,
-          );
+          detailInitialRange = Math.min(Math.floor((watched - 1) / EP_CHUNK), detailNumRanges - 1);
           if (detailInitialRange < 0) detailInitialRange = 0;
         } else {
           detailInitialRange = 0;
@@ -1265,16 +1200,12 @@
           }
         }
         const detailInitialStart = detailInitialRange * EP_CHUNK + 1;
-        const detailInitialEnd = Math.min(
-          (detailInitialRange + 1) * EP_CHUNK,
-          totalKnown,
-        );
+        const detailInitialEnd = Math.min((detailInitialRange + 1) * EP_CHUNK, totalKnown);
         html += `<div class="ep-range-selector"><div class="ep-range-dropdown" id="ep-range-dropdown"><button class="ep-range-dropdown-trigger" id="ep-range-dropdown-trigger" aria-haspopup="listbox" aria-expanded="false" type="button"><span class="ep-range-dropdown-value">${detailInitialStart}-${detailInitialEnd}</span><svg class="ep-range-dropdown-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></button><div class="ep-range-dropdown-menu" id="ep-range-dropdown-menu" role="listbox">`;
         for (let r = 0; r < detailNumRanges; r++) {
           const start = r * EP_CHUNK + 1;
           const end = Math.min((r + 1) * EP_CHUNK, totalKnown);
-          const active =
-            r === detailInitialRange ? " ep-range-dropdown-item-active" : "";
+          const active = r === detailInitialRange ? " ep-range-dropdown-item-active" : "";
           const selected = r === detailInitialRange ? "true" : "false";
           html += `<button class="ep-range-dropdown-item${active}" data-range="${r}" role="option" aria-selected="${selected}" type="button">${start}-${end}</button>`;
         }
@@ -1329,9 +1260,7 @@
       const epDropdown = document.getElementById("ep-range-dropdown");
       const epTrigger = document.getElementById("ep-range-dropdown-trigger");
       const epMenu = document.getElementById("ep-range-dropdown-menu");
-      const epTriggerValue = epTrigger
-        ? epTrigger.querySelector(".ep-range-dropdown-value")
-        : null;
+      const epTriggerValue = epTrigger ? epTrigger.querySelector(".ep-range-dropdown-value") : null;
       function renderDetailEpRange(rangeIdx) {
         if (!epGrid) return;
         let start, end;
@@ -1407,8 +1336,7 @@
           });
         });
         const onDocClickDetail = (e) => {
-          if (epDropdown && !epDropdown.contains(e.target))
-            closeDetailDropdown();
+          if (epDropdown && !epDropdown.contains(e.target)) closeDetailDropdown();
         };
         const onEscDetail = (e) => {
           if (e.key === "Escape") closeDetailDropdown();
@@ -1555,22 +1483,15 @@
     if (totalEps > 0) {
       if (totalEps > WATCH_CHUNK) {
         watchNumRanges = Math.ceil(totalEps / WATCH_CHUNK);
-        watchInitialRange = Math.min(
-          Math.floor((episode - 1) / WATCH_CHUNK),
-          watchNumRanges - 1,
-        );
+        watchInitialRange = Math.min(Math.floor((episode - 1) / WATCH_CHUNK), watchNumRanges - 1);
         if (watchInitialRange < 0) watchInitialRange = 0;
         const watchInitialStart = watchInitialRange * WATCH_CHUNK + 1;
-        const watchInitialEnd = Math.min(
-          (watchInitialRange + 1) * WATCH_CHUNK,
-          totalEps,
-        );
+        const watchInitialEnd = Math.min((watchInitialRange + 1) * WATCH_CHUNK, totalEps);
         let rangeHtml = `<div class="ep-range-selector"><div class="ep-range-dropdown" id="watch-ep-range-dropdown"><button class="ep-range-dropdown-trigger" id="watch-ep-range-dropdown-trigger" aria-haspopup="listbox" aria-expanded="false" type="button"><span class="ep-range-dropdown-value">${watchInitialStart}-${watchInitialEnd}</span><svg class="ep-range-dropdown-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></button><div class="ep-range-dropdown-menu" id="watch-ep-range-dropdown-menu" role="listbox">`;
         for (let r = 0; r < watchNumRanges; r++) {
           const start = r * WATCH_CHUNK + 1;
           const end = Math.min((r + 1) * WATCH_CHUNK, totalEps);
-          const active =
-            r === watchInitialRange ? " ep-range-dropdown-item-active" : "";
+          const active = r === watchInitialRange ? " ep-range-dropdown-item-active" : "";
           const selected = r === watchInitialRange ? "true" : "false";
           rangeHtml += `<button class="ep-range-dropdown-item${active}" data-range="${r}" role="option" aria-selected="${selected}" type="button">${start}-${end}</button>`;
         }
@@ -1705,10 +1626,7 @@
           autoNextBtn.classList.toggle("btn-primary", autoNext);
           autoNextBtn.classList.toggle("btn-outline", !autoNext);
           autoNextBtn.classList.toggle("on", autoNext);
-          autoNextBtn.setAttribute(
-            "aria-pressed",
-            autoNext ? "true" : "false",
-          );
+          autoNextBtn.setAttribute("aria-pressed", autoNext ? "true" : "false");
           autoNextBtn.innerHTML = `<span class="autonext-dot"></span>Auto Next: ${autoNext ? "On" : "Off"}`;
         });
       }
@@ -1751,13 +1669,11 @@
               episode: String(episode),
               message,
             });
-            if (statusEl)
-              statusEl.textContent = "Thanks — we received your request.";
+            if (statusEl) statusEl.textContent = "Thanks — we received your request.";
             mappingBtn.textContent = "Sent";
           } catch (err) {
             if (statusEl)
-              statusEl.textContent =
-                err.message || "Something went wrong. Please try again.";
+              statusEl.textContent = err.message || "Something went wrong. Please try again.";
             mappingBtn.disabled = false;
           }
         });
@@ -1769,11 +1685,7 @@
       if (!d) return;
       const iframe = app.querySelector("iframe");
       if (!iframe || e.source !== iframe.contentWindow) return;
-      if (
-        d.channel === "megacloud" &&
-        e.origin &&
-        !isTrustedMegaPlayOrigin(e.origin)
-      ) {
+      if (d.channel === "megacloud" && e.origin && !isTrustedMegaPlayOrigin(e.origin)) {
         return;
       }
       if (d.type === "watching-log") {
@@ -1788,8 +1700,7 @@
           navigate(`/watch/${anime.id}/${episode + 1}`);
         }
       } else if (cls.state === "error" && !error) {
-        error =
-          cls.message || "The video failed to load. Please try another source.";
+        error = cls.message || "The video failed to load. Please try another source.";
         renderPlayer();
       }
     }
@@ -1807,9 +1718,7 @@
       activeSource = 0;
 
       const malId = anime.idMal || null;
-      const provider =
-        EMBED_PROVIDERS.find((p) => p.id === currentProvider) ||
-        EMBED_PROVIDERS[0];
+      const provider = EMBED_PROVIDERS.find((p) => p.id === currentProvider) || EMBED_PROVIDERS[0];
       const subUrl = provider.makeUrl(episode, id, "sub", malId);
       sources = [{ id: "sub", name: "Sub", url: subUrl }];
       const dubUrl = provider.makeUrl(episode, id, "dub", malId);
@@ -1836,9 +1745,7 @@
     if (totalEps > 0) {
       const watchGrid = document.getElementById("watch-episodes-grid");
       const watchDropdown = document.getElementById("watch-ep-range-dropdown");
-      const watchTrigger = document.getElementById(
-        "watch-ep-range-dropdown-trigger",
-      );
+      const watchTrigger = document.getElementById("watch-ep-range-dropdown-trigger");
       const watchMenu = document.getElementById("watch-ep-range-dropdown-menu");
       const watchTriggerValue = watchTrigger
         ? watchTrigger.querySelector(".ep-range-dropdown-value")
@@ -1874,13 +1781,11 @@
           watchTriggerValue.textContent = `${start}-${end}`;
         }
         if (watchMenu) {
-          watchMenu
-            .querySelectorAll(".ep-range-dropdown-item")
-            .forEach((it) => {
-              const isActive = parseInt(it.dataset.range) === rangeIdx;
-              it.classList.toggle("ep-range-dropdown-item-active", isActive);
-              it.setAttribute("aria-selected", isActive ? "true" : "false");
-            });
+          watchMenu.querySelectorAll(".ep-range-dropdown-item").forEach((it) => {
+            const isActive = parseInt(it.dataset.range) === rangeIdx;
+            it.classList.toggle("ep-range-dropdown-item-active", isActive);
+            it.setAttribute("aria-selected", isActive ? "true" : "false");
+          });
         }
       }
       function closeWatchDropdown() {
@@ -1905,18 +1810,15 @@
           e.stopPropagation();
           toggleWatchDropdown();
         });
-        watchMenu
-          .querySelectorAll(".ep-range-dropdown-item")
-          .forEach((item) => {
-            item.addEventListener("click", () => {
-              const r = parseInt(item.dataset.range);
-              renderWatchEpRange(r);
-              closeWatchDropdown();
-            });
-          });
-        const onDocClickWatch = (e) => {
-          if (watchDropdown && !watchDropdown.contains(e.target))
+        watchMenu.querySelectorAll(".ep-range-dropdown-item").forEach((item) => {
+          item.addEventListener("click", () => {
+            const r = parseInt(item.dataset.range);
+            renderWatchEpRange(r);
             closeWatchDropdown();
+          });
+        });
+        const onDocClickWatch = (e) => {
+          if (watchDropdown && !watchDropdown.contains(e.target)) closeWatchDropdown();
         };
         const onEscWatch = (e) => {
           if (e.key === "Escape") closeWatchDropdown();
@@ -2226,7 +2128,6 @@
               '<svg width="18" height="18" viewBox="0 0 88 88" fill="currentColor" aria-hidden="true"><path d="M0 12.402l35.687-4.86.016 34.423-35.67.203zm35.67 33.529l.028 34.453L.028 75.48.026 45.7zm4.326-39.025L87.314 0v41.527l-47.318.376zm47.329 39.349l-.011 41.34-47.318-6.678-.066-34.739z"/></svg>';
           } else if (store === "play") {
             cls = "brave-link-play";
-            // Colorful Google Play triangle — 4-path official icon (blue/green/yellow/red)
             icon =
               '<svg width="18" height="18" viewBox="30 336.7 120.9 129.2" aria-hidden="true"><path fill="#FFD400" d="M119.2,421.2c15.3-8.4,27-14.8,28-15.3c3.2-1.7,6.5-6.2,0-9.7c-2.1-1.1-13.4-7.3-28-15.3l-20.1,20.2L119.2,421.2z"/><path fill="#FF3333" d="M99.1,401.1l-64.2,64.7c1.5,0.2,3.2-0.2,5.2-1.3c4.2-2.3,48.8-26.7,79.1-43.3L99.1,401.1z"/><path fill="#48FF48" d="M99.1,401.1l20.1-20.2c0,0-74.6-40.7-79.1-43.1c-1.7-1-3.6-1.3-5.3-1L99.1,401.1z"/><path fill="#3BCCFF" d="M99.1,401.1l-64.3-64.3c-2.6,0.6-4.8,2.9-4.8,7.6c0,7.5,0,107.5,0,113.8c0,4.3,1.7,7.4,4.9,7.7L99.1,401.1z"/></svg>';
           } else if (store === "apple") {
@@ -2258,9 +2159,7 @@
       <div class="notice-title" id="notice-title">${esc(
         notice.title || "What's new in AniCult",
       )}</div>
-      <ul class="notice-list">${notice.items
-        .map((item) => `<li>${esc(item)}</li>`)
-        .join("")}</ul>
+      <ul class="notice-list">${notice.items.map((item) => `<li>${esc(item)}</li>`).join("")}</ul>
       ${braveHtml}
       <div class="notice-actions">
         <button class="btn btn-primary notice-close" id="notice-close" disabled>${esc(
@@ -2338,8 +2237,7 @@
       const data = await gql(q, { search: query });
       const media = data.Page.media;
       if (!media.length) {
-        suggestionsEl.innerHTML =
-          '<div class="search-suggestions-empty">No suggestions</div>';
+        suggestionsEl.innerHTML = '<div class="search-suggestions-empty">No suggestions</div>';
         suggestionsEl.classList.add("open");
         suggestionItems = [];
         return;
@@ -2381,10 +2279,7 @@
     if (!suggestionsEl.classList.contains("open")) return;
     if (e.key === "ArrowDown") {
       e.preventDefault();
-      activeSuggestion = Math.min(
-        activeSuggestion + 1,
-        suggestionItems.length - 1,
-      );
+      activeSuggestion = Math.min(activeSuggestion + 1, suggestionItems.length - 1);
       updateActive();
     } else if (e.key === "ArrowUp") {
       e.preventDefault();
@@ -2505,15 +2400,11 @@
         e.preventDefault();
         navigate(href);
         if (navLinks.classList.contains("open")) closeMenu();
-        if (navSearchWrap && navSearchWrap.classList.contains("open"))
-          closeSearch();
+        if (navSearchWrap && navSearchWrap.classList.contains("open")) closeSearch();
         return;
       }
     }
-    if (
-      !e.target.closest(".nav-search-wrap") &&
-      !e.target.closest("#nav-search-toggle")
-    ) {
+    if (!e.target.closest(".nav-search-wrap") && !e.target.closest("#nav-search-toggle")) {
       if (navSearchWrap && navSearchWrap.classList.contains("open")) {
         closeSearch();
       } else {
@@ -2534,8 +2425,7 @@
       if (!href) return;
       link.classList.remove("active");
       if (href === "/") {
-        if (currentPath === "/" || currentPath === "")
-          link.classList.add("active");
+        if (currentPath === "/" || currentPath === "") link.classList.add("active");
       } else if (href.startsWith("/search")) {
         const linkUrl = new URL(href, location.origin);
         const curUrl = new URL(location.href);
@@ -2556,8 +2446,7 @@
 
   window.addEventListener("popstate", () => {
     if (navLinks.classList.contains("open")) closeMenu();
-    if (navSearchWrap && navSearchWrap.classList.contains("open"))
-      closeSearch();
+    if (navSearchWrap && navSearchWrap.classList.contains("open")) closeSearch();
     route();
   });
   route();
