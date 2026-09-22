@@ -1451,10 +1451,6 @@ select:focus {
   object-fit: cover;
 }
 
-.about-social-logo {
-  filter: brightness(0) invert(1);
-}
-
 .about-card-text {
   min-width: 0;
 }

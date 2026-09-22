@@ -2065,7 +2065,6 @@
       html += `<div class="about-card-col">`;
       html += `<div class="about-dev-header"><span class="about-dev-badge">Main Developer of AniCult</span></div>`;
       html += `<a class="about-row" href="https://github.com/aluukill/AniCult" target="_blank" rel="noopener noreferrer">${githubIcon}<span class="about-card-text"><span class="about-link-title">Source on GitHub</span><span class="about-link-text">Star the project, report issues, or contribute</span></span></a>`;
-      html += `<a class="about-row" href="https://linktr.ee/aluukill" target="_blank" rel="noopener noreferrer"><img class="about-social-logo" src="https://assets.streamlinehq.com/image/private/w_300,h_300,ar_1/f_auto/v1/icons/logos/linktree-hrggdeqdzll06zjl9h6j.png/linktree-bafynmeua3noot52xbu71.png?_a=DATAiZAAZAA0" alt="Linktree" loading="lazy"><span class="about-card-text"><span class="about-link-title">Linktree</span><span class="about-link-text">@aluukill</span></span></a>`;
       html += `<a class="about-row" href="https://syedtanvir.vercel.app" target="_blank" rel="noopener noreferrer"><img class="about-portfolio-logo" src="https://syedtanvir.vercel.app/assets/icon.png" alt="Portfolio" loading="lazy"><span class="about-card-text"><span class="about-link-title">Portfolio</span><span class="about-link-text">syedtanvir.vercel.app</span></span></a>`;
       html += `</div>`;
       html += `</div>`;
