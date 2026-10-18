@@ -2086,7 +2086,7 @@
     }, 300);
   }
 
-  const NOTICE_FILE = "notice.json";
+  const NOTICE_FILE = "/notice.json";
   const NOTICE_SEEN_KEY = "anicult_notice_seen";
 
   async function showUpdateNotice() {
